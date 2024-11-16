@@ -1,23 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planet Simulation</title>
-    <style>
-        canvas { border: 1px solid black; display: block; margin: auto; }
-        #controls { text-align: center; margin-top: 20px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orbital Simulation</title>
+  <style>
+    body {
+      display: flex;
+      background: #121212;
+      color: white;
+      font-family: Arial, sans-serif;
+      margin: 0;
+    }
+    #sidebar {
+      width: 300px;
+      padding: 10px;
+      background: #1e1e1e;
+      overflow-y: auto;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+    #sidebar h2 {
+      text-align: center;
+      font-size: 18px;
+    }
+    #sidebar label {
+      font-size: 14px;
+      display: block;
+      margin-top: 10px;
+    }
+    #sidebar .info {
+      margin-top: 15px;
+      font-size: 14px;
+    }
+    canvas {
+      flex-grow: 1;
+      display: block;
+      margin: auto;
+      background: #000;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+  </style>
 </head>
 <body>
-    <canvas id="simulation" width="800" height="800"></canvas>
-    <div id="controls">
-        <input type="file" id="fileInput">
-        <button id="start">Start</button>
-        <button id="timeWarp">Time Warp</button>
-        <button id="reset">Reset</button>
+  <div id="sidebar">
+    <h2>Simulation Controls</h2>
+    <label for="speedControl">Simulation Speed:</label>
+    <input id="speedControl" type="range" min="1" max="100" value="10">
+    <div class="info">
+      <h3>Physics Info</h3>
+      <div id="physicsInfo"></div>
     </div>
-    <script src="simulation.js"></script>
+  </div>
+  <canvas id="orbitCanvas" width="800" height="800"></canvas>
+
+  <script>
+    // Constants
+    const G = 6.6743e-11;
+    const AU = 1.496e11; // Astronomical Unit in meters
+    const day = 24 * 3600; // Day in seconds
+
+    // Canvas Setup
+    const canvas = document.getElementById('orbitCanvas');
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    const scale = width / (10 * AU);
+
+    const speedControl = document.getElementById('speedControl');
+    let speedMultiplier = Number(speedControl.value);
+
+    // Solar System Bodies (approximate values)
+    const bodies = [
+      { name: "Sun", mass: 1.99e30, position: [0, 0], velocity: [0, 0], color: 'orange' },
+      { name: "Mercury", mass: 3.3e23, position: [0.39 * AU, 0], velocity: [0, 47800], color: 'gray' },
+      { name: "Venus", mass: 4.87e24, position: [0.72 * AU, 0], velocity: [0, 35000], color: 'yellow' },
+      { name: "Earth", mass: 5.97e24, position: [AU, 0], velocity: [0, 30000], color: 'blue' },
+      { name: "Mars", mass: 6.42e23, position: [1.52 * AU, 0], velocity: [0, 24000], color: 'red' },
+      { name: "Jupiter", mass: 1.9e27, position: [5.2 * AU, 0], velocity: [0, 13000], color: 'orange' },
+      { name: "Saturn", mass: 5.68e26, position: [9.58 * AU, 0], velocity: [0, 9700], color: 'goldenrod' },
+      { name: "Uranus", mass: 8.68e25, position: [19.2 * AU, 0], velocity: [0, 6800], color: 'lightblue' },
+      { name: "Neptune", mass: 1.02e26, position: [30.05 * AU, 0], velocity: [0, 5400], color: 'blue' }
+    ];
+
+    let positions = bodies.map(b => b.position.slice());
+    let velocities = bodies.map(b => b.velocity.slice());
+    const masses = bodies.map(b => b.mass);
+
+    const dt = 0.1 * day; // Time step
+    const trails = bodies.map(() => []); // Infinite trails
+
+    const physicsInfoDiv = document.getElementById('physicsInfo');
+
+    // Update Speed Control
+    speedControl.addEventListener('input', () => {
+      speedMultiplier = Number(speedControl.value);
+    });
+
+    function computeCenterOfMass(positions, masses) {
+      const totalMass = masses.reduce((a, b) => a + b, 0);
+      const centerOfMass = [0, 0];
+      for (let i = 0; i < masses.length; i++) {
+        centerOfMass[0] += positions[i][0] * masses[i];
+        centerOfMass[1] += positions[i][1] * masses[i];
+      }
+      centerOfMass[0] /= totalMass;
+      centerOfMass[1] /= totalMass;
+      return centerOfMass;
+    }
+
+    function computeAccelerations(positions, masses) {
+      const accelerations = positions.map(() => [0, 0]);
+      for (let i = 0; i < masses.length; i++) {
+        for (let j = 0; j < masses.length; j++) {
+          if (i !== j) {
+            const dx = positions[j][0] - positions[i][0];
+            const dy = positions[j][1] - positions[i][1];
+            const r = Math.sqrt(dx * dx + dy * dy);
+            const force = (G * masses[j]) / (r * r);
+            const ax = (force * dx) / r;
+            const ay = (force * dy) / r;
+            accelerations[i][0] += ax;
+            accelerations[i][1] += ay;
+          }
+        }
+      }
+      return accelerations;
+    }
+
+    function updatePositionsAndVelocities(positions, velocities, masses, dt) {
+      const accelerations = computeAccelerations(positions, masses);
+      for (let i = 0; i < positions.length; i++) {
+        velocities[i][0] += accelerations[i][0] * dt;
+        velocities[i][1] += accelerations[i][1] * dt;
+        positions[i][0] += velocities[i][0] * dt;
+        positions[i][1] += velocities[i][1] * dt;
+      }
+
+      const centerOfMass = computeCenterOfMass(positions, masses);
+      for (let i = 0; i < positions.length; i++) {
+        positions[i][0] -= centerOfMass[0];
+        positions[i][1] -= centerOfMass[1];
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+
+      trails.forEach((trail, i) => {
+        ctx.beginPath();
+        trail.forEach(([x, y], index) => {
+          const canvasX = width / 2 + x * scale;
+          const canvasY = height / 2 + y * scale;
+          if (index === 0) {
+            ctx.moveTo(canvasX, canvasY);
+          } else {
+            ctx.lineTo(canvasX, canvasY);
+          }
+        });
+        ctx.strokeStyle = bodies[i].color;
+        ctx.stroke();
+      });
+
+      bodies.forEach((body, i) => {
+        const [x, y] = positions[i];
+        const canvasX = width / 2 + x * scale;
+        const canvasY = height / 2 + y * scale;
+
+        ctx.beginPath();
+        ctx.arc(canvasX, canvasY, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = body.color;
+        ctx.fill();
+      });
+    }
+
+    function updatePhysicsInfo() {
+      physicsInfoDiv.innerHTML = '';
+      bodies.forEach((body, i) => {
+        const [x, y] = positions[i];
+        const [vx, vy] = velocities[i];
+        const distance = Math.sqrt(x * x + y * y);
+
+        physicsInfoDiv.innerHTML += `
+          <strong>${body.name}</strong><br>
+          Position: (${(x / AU).toFixed(2)} AU, ${(y / AU).toFixed(2)} AU)<br>
+          Velocity: (${vx.toFixed(2)} m/s, ${vy.toFixed(2)} m/s)<br>
+          Distance from Sun: ${(distance / AU).toFixed(2)} AU<br><br>
+        `;
+      });
+    }
+
+    function simulate() {
+      for (let step = 0; step < speedMultiplier; step++) {
+        updatePositionsAndVelocities(positions, velocities, masses, dt);
+
+        positions.forEach((pos, i) => trails[i].push(pos.slice()));
+      }
+
+      draw();
+      updatePhysicsInfo();
+
+      requestAnimationFrame(simulate);
+    }
+
+    simulate();
+  </script>
 </body>
 </html>
-
