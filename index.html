@@ -33,6 +33,11 @@
       margin-top: 15px;
       font-size: 14px;
     }
+    #zoomValue, #speedValue {
+      color: white;
+      font-size: 16px;
+      text-align: center;
+    }
     canvas {
       flex-grow: 1;
       display: block;
@@ -49,6 +54,12 @@
     <h2>Simulation Controls</h2>
     <label for="speedControl">Simulation Speed:</label>
     <input id="speedControl" type="range" min="1" max="100" value="10">
+    <div id="speedValue">Simulation Speed: 10</div>
+    
+    <label for="zoomControl">Zoom Level:</label>
+    <input id="zoomControl" type="range" min="1" max="100" value="10">
+    <div id="zoomValue">Zoom: 10x</div>
+
     <div class="info">
       <h3>Physics Info</h3>
       <div id="physicsInfo"></div>
@@ -68,9 +79,17 @@
     const width = canvas.width;
     const height = canvas.height;
 
-    const scale = width / (10 * AU);
+    let scale = width / (10 * AU);  // Initial zoom scale
+    let offsetX = width / 2;        // Start offset at center
+    let offsetY = height / 2;       // Start offset at center
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let isDragging = false;
 
     const speedControl = document.getElementById('speedControl');
+    const zoomControl = document.getElementById('zoomControl');
+    const speedValue = document.getElementById('speedValue');
+    const zoomValue = document.getElementById('zoomValue');
     let speedMultiplier = Number(speedControl.value);
 
     // Solar System Bodies (approximate values)
@@ -98,6 +117,31 @@
     // Update Speed Control
     speedControl.addEventListener('input', () => {
       speedMultiplier = Number(speedControl.value);
+      speedValue.textContent = `Simulation Speed: ${speedControl.value}`;
+    });
+
+    // Update Zoom Control
+    zoomControl.addEventListener('input', () => {
+      scale = width / (zoomControl.value * AU);  // Adjust zoom scale
+      zoomValue.textContent = `Zoom: ${zoomControl.value}x`;
+    });
+
+    // Dragging Canvas Setup
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      dragStartX = e.clientX - offsetX;
+      dragStartY = e.clientY - offsetY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        offsetX = e.clientX - dragStartX;
+        offsetY = e.clientY - dragStartY;
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDragging = false;
     });
 
     function computeCenterOfMass(positions, masses) {
@@ -153,8 +197,8 @@
       trails.forEach((trail, i) => {
         ctx.beginPath();
         trail.forEach(([x, y], index) => {
-          const canvasX = width / 2 + x * scale;
-          const canvasY = height / 2 + y * scale;
+          const canvasX = offsetX + x * scale;
+          const canvasY = offsetY + y * scale;
           if (index === 0) {
             ctx.moveTo(canvasX, canvasY);
           } else {
@@ -167,8 +211,8 @@
 
       bodies.forEach((body, i) => {
         const [x, y] = positions[i];
-        const canvasX = width / 2 + x * scale;
-        const canvasY = height / 2 + y * scale;
+        const canvasX = offsetX + x * scale;
+        const canvasY = offsetY + y * scale;
 
         ctx.beginPath();
         ctx.arc(canvasX, canvasY, 5, 0, 2 * Math.PI);
@@ -196,7 +240,6 @@
     function simulate() {
       for (let step = 0; step < speedMultiplier; step++) {
         updatePositionsAndVelocities(positions, velocities, masses, dt);
-
         positions.forEach((pos, i) => trails[i].push(pos.slice()));
       }
 
