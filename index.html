@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planet Simulation</title>
+    <style>
+        canvas { border: 1px solid black; display: block; margin: auto; }
+        #controls { text-align: center; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <canvas id="simulation" width="800" height="800"></canvas>
+    <div id="controls">
+        <input type="file" id="fileInput">
+        <button id="start">Start</button>
+        <button id="timeWarp">Time Warp</button>
+        <button id="reset">Reset</button>
+    </div>
+    <script src="simulation.js"></script>
+</body>
+</html>
