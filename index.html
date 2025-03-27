@@ -44,6 +44,20 @@
       margin: auto;
       background: #000;
     }
+    /* Optional styling for the reset button */
+    #resetButton {
+      margin-top: 15px;
+      padding: 10px;
+      width: 100%;
+      font-size: 16px;
+      background-color: #444;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #resetButton:hover {
+      background-color: #666;
+    }
   </style>
 </head>
 <body>
@@ -123,7 +137,44 @@
         <input id="jupiterVelocity" type="range" min="10000" max="50000" value="13000">
         <span id="jupiterVelocityValue">13000</span>
       </div>
+
+      <!-- Controls for Saturn -->
+      <div id="saturnControls">
+        <h4>Saturn</h4>
+        <label for="saturnMass">Mass (kg):</label>
+        <input id="saturnMass" type="range" min="1e22" max="1e30" value="5.68e26">
+        <span id="saturnMassValue">5.68e26</span>
+
+        <label for="saturnVelocity">Velocity (m/s):</label>
+        <input id="saturnVelocity" type="range" min="10000" max="50000" value="9700">
+        <span id="saturnVelocityValue">9700</span>
+      </div>
+
+      <!-- Controls for Uranus -->
+      <div id="uranusControls">
+        <h4>Uranus</h4>
+        <label for="uranusMass">Mass (kg):</label>
+        <input id="uranusMass" type="range" min="1e22" max="1e30" value="8.68e25">
+        <span id="uranusMassValue">8.68e25</span>
+
+        <label for="uranusVelocity">Velocity (m/s):</label>
+        <input id="uranusVelocity" type="range" min="10000" max="50000" value="6800">
+        <span id="uranusVelocityValue">6800</span>
+      </div>
+
+      <!-- Controls for Neptune -->
+      <div id="neptuneControls">
+        <h4>Neptune</h4>
+        <label for="neptuneMass">Mass (kg):</label>
+        <input id="neptuneMass" type="range" min="1e22" max="1e30" value="1.02e26">
+        <span id="neptuneMassValue">1.02e26</span>
+
+        <label for="neptuneVelocity">Velocity (m/s):</label>
+        <input id="neptuneVelocity" type="range" min="10000" max="50000" value="5430">
+        <span id="neptuneVelocityValue">5430</span>
+      </div>
     </div>
+    <button id="resetButton">Reset Paths</button>
   </div>
   <canvas id="orbitCanvas" width="800" height="800"></canvas>
 
@@ -159,6 +210,9 @@
       { name: "Venus", mass: 4.87e24, position: [0.72 * AU, 0], velocity: [0, 35000], rotation: 0, color: 'yellow' },
       { name: "Mars", mass: 6.42e23, position: [1.52 * AU, 0], velocity: [0, 24000], rotation: 0, color: 'red' },
       { name: "Jupiter", mass: 1.9e27, position: [5.2 * AU, 0], velocity: [0, 13000], rotation: 0, color: 'orange' },
+      { name: "Saturn", mass: 5.68e26, position: [9.5 * AU, 0], velocity: [0, 9700], rotation: 0, color: 'goldenrod' },
+      { name: "Uranus", mass: 8.68e25, position: [19.2 * AU, 0], velocity: [0, 6800], rotation: 0, color: 'lightblue' },
+      { name: "Neptune", mass: 1.02e26, position: [30.1 * AU, 0], velocity: [0, 5430], rotation: 0, color: 'darkblue' },
     ];
 
     let positions = bodies.map(b => b.position.slice());
@@ -198,6 +252,14 @@
     updatePlanetControls(3, document.getElementById('venusMass'), document.getElementById('venusVelocity'), document.getElementById('venusMassValue'), document.getElementById('venusVelocityValue'));
     updatePlanetControls(4, document.getElementById('marsMass'), document.getElementById('marsVelocity'), document.getElementById('marsMassValue'), document.getElementById('marsVelocityValue'));
     updatePlanetControls(5, document.getElementById('jupiterMass'), document.getElementById('jupiterVelocity'), document.getElementById('jupiterMassValue'), document.getElementById('jupiterVelocityValue'));
+    updatePlanetControls(6, document.getElementById('saturnMass'), document.getElementById('saturnVelocity'), document.getElementById('saturnMassValue'), document.getElementById('saturnVelocityValue'));
+    updatePlanetControls(7, document.getElementById('uranusMass'), document.getElementById('uranusVelocity'), document.getElementById('uranusMassValue'), document.getElementById('uranusVelocityValue'));
+    updatePlanetControls(8, document.getElementById('neptuneMass'), document.getElementById('neptuneVelocity'), document.getElementById('neptuneMassValue'), document.getElementById('neptuneVelocityValue'));
+
+    // Reset Paths Button Event Listener
+    document.getElementById('resetButton').addEventListener('click', () => {
+      trails.forEach(trail => trail.length = 0);
+    });
 
     // Mouse Wheel for Zooming
     canvas.addEventListener('wheel', (e) => {
@@ -323,3 +385,4 @@
   </script>
 </body>
 </html>
+
