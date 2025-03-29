@@ -5,58 +5,97 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Orbital Simulation</title>
   <style>
+    /* Overall Layout */
     body {
       display: flex;
       background: #121212;
-      color: white;
-      font-family: Arial, sans-serif;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       margin: 0;
     }
+    /* Sidebar Styling */
     #sidebar {
-      width: 300px;
-      padding: 10px;
+      width: 320px;
+      padding: 15px;
       background: #1e1e1e;
       overflow-y: auto;
       height: 100vh;
       box-sizing: border-box;
+      border-right: 2px solid #333;
     }
-    #sidebar h2 {
+    #sidebar h2, #sidebar h3, #sidebar h4 {
       text-align: center;
-      font-size: 18px;
+      margin-bottom: 10px;
     }
     #sidebar label {
       font-size: 14px;
       display: block;
       margin-top: 10px;
     }
-    #sidebar .info {
-      margin-top: 15px;
-      font-size: 14px;
+    #sidebar input[type="range"] {
+      width: 100%;
+      margin: 5px 0;
     }
-    #zoomValue, #speedValue {
-      color: white;
+    #sidebar span {
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      font-size: 13px;
+      color: #bbb;
+    }
+    #speedValue {
+      color: #e0e0e0;
       font-size: 16px;
       text-align: center;
+      margin-bottom: 15px;
     }
+    .info {
+      margin-top: 15px;
+      font-size: 14px;
+      background: #2a2a2a;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    #resetButton {
+      margin: 15px auto;
+      padding: 10px;
+      width: 90%;
+      font-size: 16px;
+      background-color: #444;
+      color: #e0e0e0;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: block;
+    }
+    #resetButton:hover {
+      background-color: #666;
+    }
+    /* Canvas Styling */
     canvas {
       flex-grow: 1;
       display: block;
       margin: auto;
       background: #000;
     }
-    /* Optional styling for the reset button */
-    #resetButton {
-      margin-top: 15px;
+    /* Tooltip Styling */
+    #tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid #444;
       padding: 10px;
-      width: 100%;
-      font-size: 16px;
-      background-color: #444;
-      color: white;
-      border: none;
-      cursor: pointer;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 13px;
+      pointer-events: none;
+      display: none;
+      z-index: 10;
     }
-    #resetButton:hover {
-      background-color: #666;
+    #tooltip img {
+      max-width: 100px;
+      display: block;
+      margin: 5px auto;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -71,7 +110,7 @@
       <h3>Physics Info</h3>
       <div id="physicsInfo"></div>
     </div>
-    <div id="timeElapsed">
+    <div id="timeElapsed" class="info">
       <h3>Time Elapsed</h3>
       <div id="timeValue">0 years, 0 months, 0 days, 0 hours</div>
     </div>
@@ -173,10 +212,72 @@
         <input id="neptuneVelocity" type="range" min="10000" max="50000" value="5430">
         <span id="neptuneVelocityValue">5430</span>
       </div>
+
+      <!-- Controls for Pluto -->
+      <div id="plutoControls">
+        <h4>Pluto</h4>
+        <label for="plutoMass">Mass (kg):</label>
+        <input id="plutoMass" type="range" min="1e20" max="1e30" value="1.31e22">
+        <span id="plutoMassValue">1.31e22</span>
+
+        <label for="plutoVelocity">Velocity (m/s):</label>
+        <input id="plutoVelocity" type="range" min="1000" max="10000" value="4740">
+        <span id="plutoVelocityValue">4740</span>
+      </div>
+
+      <!-- Controls for Ceres -->
+      <div id="ceresControls">
+        <h4>Ceres</h4>
+        <label for="ceresMass">Mass (kg):</label>
+        <input id="ceresMass" type="range" min="1e20" max="1e30" value="9.39e20">
+        <span id="ceresMassValue">9.39e20</span>
+
+        <label for="ceresVelocity">Velocity (m/s):</label>
+        <input id="ceresVelocity" type="range" min="1000" max="20000" value="17900">
+        <span id="ceresVelocityValue">17900</span>
+      </div>
+
+      <!-- Controls for Eris -->
+      <div id="erisControls">
+        <h4>Eris</h4>
+        <label for="erisMass">Mass (kg):</label>
+        <input id="erisMass" type="range" min="1e20" max="1e30" value="1.66e22">
+        <span id="erisMassValue">1.66e22</span>
+
+        <label for="erisVelocity">Velocity (m/s):</label>
+        <input id="erisVelocity" type="range" min="1000" max="10000" value="3500">
+        <span id="erisVelocityValue">3500</span>
+      </div>
+
+      <!-- Controls for Haumea -->
+      <div id="haumeaControls">
+        <h4>Haumea</h4>
+        <label for="haumeaMass">Mass (kg):</label>
+        <input id="haumeaMass" type="range" min="1e20" max="1e30" value="4.01e21">
+        <span id="haumeaMassValue">4.01e21</span>
+
+        <label for="haumeaVelocity">Velocity (m/s):</label>
+        <input id="haumeaVelocity" type="range" min="1000" max="10000" value="4000">
+        <span id="haumeaVelocityValue">4000</span>
+      </div>
+
+      <!-- Controls for Makemake -->
+      <div id="makemakeControls">
+        <h4>Makemake</h4>
+        <label for="makemakeMass">Mass (kg):</label>
+        <input id="makemakeMass" type="range" min="1e20" max="1e30" value="3e21">
+        <span id="makemakeMassValue">3e21</span>
+
+        <label for="makemakeVelocity">Velocity (m/s):</label>
+        <input id="makemakeVelocity" type="range" min="1000" max="10000" value="4000">
+        <span id="makemakeVelocityValue">4000</span>
+      </div>
     </div>
     <button id="resetButton">Reset Paths</button>
   </div>
   <canvas id="orbitCanvas" width="800" height="800"></canvas>
+  <!-- Tooltip for Planet Info -->
+  <div id="tooltip"></div>
 
   <script>
     // Constants
@@ -202,17 +303,65 @@
     const timeValue = document.getElementById('timeValue');
     let speedMultiplier = Number(speedControl.value);
 
-    // Solar System Bodies (initial values)
+    // Solar System Bodies with real astronomical values and extra info
+    // Added image and info properties for tooltip display
     let bodies = [
-      { name: "Sun", mass: 1.99e30, position: [0, 0], velocity: [0, 0], rotation: 0, color: 'orange' },
-      { name: "Earth", mass: 5.97e24, position: [AU, 0], velocity: [0, 30000], rotation: 0, color: 'blue' },
-      { name: "Mercury", mass: 3.3e23, position: [0.39 * AU, 0], velocity: [0, 47800], rotation: 0, color: 'gray' },
-      { name: "Venus", mass: 4.87e24, position: [0.72 * AU, 0], velocity: [0, 35000], rotation: 0, color: 'yellow' },
-      { name: "Mars", mass: 6.42e23, position: [1.52 * AU, 0], velocity: [0, 24000], rotation: 0, color: 'red' },
-      { name: "Jupiter", mass: 1.9e27, position: [5.2 * AU, 0], velocity: [0, 13000], rotation: 0, color: 'orange' },
-      { name: "Saturn", mass: 5.68e26, position: [9.5 * AU, 0], velocity: [0, 9700], rotation: 0, color: 'goldenrod' },
-      { name: "Uranus", mass: 8.68e25, position: [19.2 * AU, 0], velocity: [0, 6800], rotation: 0, color: 'lightblue' },
-      { name: "Neptune", mass: 1.02e26, position: [30.1 * AU, 0], velocity: [0, 5430], rotation: 0, color: 'darkblue' },
+      { name: "Sun", mass: 1.99e30, position: [0, 0], velocity: [0, 0], rotation: 0, color: 'orange',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white.jpg',
+        info: "The Sun: 1.0 Sol, the center of our solar system."
+      },
+      { name: "Earth", mass: 5.97e24, position: [1 * AU, 0], velocity: [0, 30000], rotation: 0, color: 'blue',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg',
+        info: "Earth: 1 AU, Orbital Period: 365 days"
+      },
+      { name: "Mercury", mass: 3.3e23, position: [0.39 * AU, 0], velocity: [0, 47800], rotation: 0, color: 'gray',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg',
+        info: "Mercury: 0.39 AU, Orbital Period: 88 days"
+      },
+      { name: "Venus", mass: 4.87e24, position: [0.72 * AU, 0], velocity: [0, 35000], rotation: 0, color: 'yellow',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg',
+        info: "Venus: 0.72 AU, Orbital Period: 225 days"
+      },
+      { name: "Mars", mass: 6.42e23, position: [1.52 * AU, 0], velocity: [0, 24000], rotation: 0, color: 'red',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg',
+        info: "Mars: 1.52 AU, Orbital Period: 687 days"
+      },
+      { name: "Jupiter", mass: 1.9e27, position: [5.2 * AU, 0], velocity: [0, 13000], rotation: 0, color: 'orange',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg',
+        info: "Jupiter: 5.2 AU, Orbital Period: 4331 days"
+      },
+      { name: "Saturn", mass: 5.68e26, position: [9.58 * AU, 0], velocity: [0, 9700], rotation: 0, color: 'goldenrod',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg',
+        info: "Saturn: 9.58 AU, Orbital Period: 10759 days"
+      },
+      { name: "Uranus", mass: 8.68e25, position: [19.2 * AU, 0], velocity: [0, 6800], rotation: 0, color: 'lightblue',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg',
+        info: "Uranus: 19.2 AU, Orbital Period: 30687 days"
+      },
+      { name: "Neptune", mass: 1.02e26, position: [30.05 * AU, 0], velocity: [0, 5430], rotation: 0, color: 'darkblue',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_Full.jpg',
+        info: "Neptune: 30.05 AU, Orbital Period: 60190 days"
+      },
+      { name: "Pluto", mass: 1.31e22, position: [39.48 * AU, 0], velocity: [0, 4740], rotation: 0, color: 'white',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Nh-pluto-in-true-color_2x_JPEG.jpg',
+        info: "Pluto: 39.48 AU, Orbital Period: 90560 days"
+      },
+      { name: "Ceres", mass: 9.39e20, position: [2.77 * AU, 0], velocity: [0, 17900], rotation: 0, color: 'darkgray',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/0/09/Ceres_-_Vesta_mosaic.jpg',
+        info: "Ceres: 2.77 AU, Orbital Period: 1680 days"
+      },
+      { name: "Eris", mass: 1.66e22, position: [67.67 * AU, 0], velocity: [0, 3500], rotation: 0, color: 'purple',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Eris_in_true_color.jpg',
+        info: "Eris: 67.67 AU, Orbital Period: 203600 days"
+      },
+      { name: "Haumea", mass: 4.01e21, position: [43.13 * AU, 0], velocity: [0, 4000], rotation: 0, color: 'magenta',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/6/6f/Haumea_%28small_planet%29.jpg',
+        info: "Haumea: 43.13 AU, Orbital Period: 103400 days"
+      },
+      { name: "Makemake", mass: 3e21, position: [45.79 * AU, 0], velocity: [0, 4000], rotation: 0, color: 'orange',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Makemake_in_true_color.jpg',
+        info: "Makemake: 45.79 AU, Orbital Period: 112897 days"
+      }
     ];
 
     let positions = bodies.map(b => b.position.slice());
@@ -246,7 +395,7 @@
       });
     };
 
-    // Apply event listeners for each planet
+    // Apply event listeners for each planet (indices match the bodies array order)
     updatePlanetControls(1, document.getElementById('earthMass'), document.getElementById('earthVelocity'), document.getElementById('earthMassValue'), document.getElementById('earthVelocityValue'));
     updatePlanetControls(2, document.getElementById('mercuryMass'), document.getElementById('mercuryVelocity'), document.getElementById('mercuryMassValue'), document.getElementById('mercuryVelocityValue'));
     updatePlanetControls(3, document.getElementById('venusMass'), document.getElementById('venusVelocity'), document.getElementById('venusMassValue'), document.getElementById('venusVelocityValue'));
@@ -255,6 +404,11 @@
     updatePlanetControls(6, document.getElementById('saturnMass'), document.getElementById('saturnVelocity'), document.getElementById('saturnMassValue'), document.getElementById('saturnVelocityValue'));
     updatePlanetControls(7, document.getElementById('uranusMass'), document.getElementById('uranusVelocity'), document.getElementById('uranusMassValue'), document.getElementById('uranusVelocityValue'));
     updatePlanetControls(8, document.getElementById('neptuneMass'), document.getElementById('neptuneVelocity'), document.getElementById('neptuneMassValue'), document.getElementById('neptuneVelocityValue'));
+    updatePlanetControls(9, document.getElementById('plutoMass'), document.getElementById('plutoVelocity'), document.getElementById('plutoMassValue'), document.getElementById('plutoVelocityValue'));
+    updatePlanetControls(10, document.getElementById('ceresMass'), document.getElementById('ceresVelocity'), document.getElementById('ceresMassValue'), document.getElementById('ceresVelocityValue'));
+    updatePlanetControls(11, document.getElementById('erisMass'), document.getElementById('erisVelocity'), document.getElementById('erisMassValue'), document.getElementById('erisVelocityValue'));
+    updatePlanetControls(12, document.getElementById('haumeaMass'), document.getElementById('haumeaVelocity'), document.getElementById('haumeaMassValue'), document.getElementById('haumeaVelocityValue'));
+    updatePlanetControls(13, document.getElementById('makemakeMass'), document.getElementById('makemakeVelocity'), document.getElementById('makemakeMassValue'), document.getElementById('makemakeVelocityValue'));
 
     // Reset Paths Button Event Listener
     document.getElementById('resetButton').addEventListener('click', () => {
@@ -287,6 +441,42 @@
 
     canvas.addEventListener('mouseup', () => {
       isDragging = false;
+    });
+
+    // Tooltip Setup
+    const tooltip = document.getElementById('tooltip');
+    canvas.addEventListener('mousemove', (e) => {
+      // Calculate canvas-relative mouse position
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      let found = false;
+      
+      // Check each body for proximity (within 8 pixels in canvas space)
+      for (let i = 0; i < bodies.length; i++) {
+        const [x, y] = positions[i];
+        const canvasX = offsetX + x * scale;
+        const canvasY = offsetY + y * scale;
+        const dx = mouseX - canvasX;
+        const dy = mouseY - canvasY;
+        if (Math.sqrt(dx * dx + dy * dy) < 8) {
+          // Update tooltip content
+          tooltip.innerHTML = `<strong>${bodies[i].name}</strong><br>
+                               ${bodies[i].info}<br>
+                               <img src="${bodies[i].image}" alt="${bodies[i].name}">`;
+          tooltip.style.left = e.pageX + 15 + 'px';
+          tooltip.style.top = e.pageY + 15 + 'px';
+          tooltip.style.display = 'block';
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        tooltip.style.display = 'none';
+      }
+    });
+    canvas.addEventListener('mouseleave', () => {
+      tooltip.style.display = 'none';
     });
 
     function computeCenterOfMass(positions, masses) {
@@ -385,4 +575,3 @@
   </script>
 </body>
 </html>
-
