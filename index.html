@@ -68,7 +68,6 @@
     .manageButtons button {
       margin-bottom: 8px;
     }
-
     .asteroidControls {
       margin-top: 10px;
       background: #333;
@@ -79,7 +78,6 @@
       font-size: 13px;
       margin-top: 5px;
     }
-
     #tooltip {
       position: absolute;
       background: rgba(0,0,0,0.8);
@@ -107,13 +105,11 @@
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
   <div id="sidebar">
     <h2>Simulation Controls</h2>
     <label for="speedControl">Simulation Speed:</label>
     <input id="speedControl" type="range" min="0" max="100" value="1">
     <div id="speedValue">Simulation Speed: 1</div>
-
     <div class="info">
       <h3>Physics Info</h3>
       <div id="physicsInfo"></div>
@@ -129,7 +125,6 @@
         <button id="removeBody">Remove Last Body</button>
         <button id="resetButton">Reset Paths</button>
       </div>
-      <!-- Asteroid parameters (for interactive addition) -->
       <div class="asteroidControls">
         <label for="asteroidMass">Asteroid Mass (kg):</label>
         <input id="asteroidMass" type="number" value="1e18">
@@ -138,215 +133,121 @@
         <p style="font-size:12px;">After clicking "Add Asteroid", click once for position then click a second time for velocity direction.</p>
       </div>
     </div>
-
     <div id="planetControls">
       <h3>Planet Controls</h3>
-      <!-- Existing controls (example for a few bodies; others can be added similarly) -->
       <div id="earthControls">
         <h4>Earth</h4>
         <label for="earthMass">Mass (kg):</label>
         <input id="earthMass" type="range" min="1e22" max="1e30" value="5.97e24">
         <span id="earthMassValue">5.97e24</span>
-
         <label for="earthVelocity">Velocity (m/s):</label>
         <input id="earthVelocity" type="range" min="10000" max="50000" value="30000">
         <span id="earthVelocityValue">30000</span>
       </div>
-
       <div id="mercuryControls">
         <h4>Mercury</h4>
         <label for="mercuryMass">Mass (kg):</label>
         <input id="mercuryMass" type="range" min="1e22" max="1e30" value="3.3e23">
         <span id="mercuryMassValue">3.3e23</span>
-
         <label for="mercuryVelocity">Velocity (m/s):</label>
         <input id="mercuryVelocity" type="range" min="10000" max="50000" value="47800">
         <span id="mercuryVelocityValue">47800</span>
       </div>
-
       <div id="venusControls">
         <h4>Venus</h4>
         <label for="venusMass">Mass (kg):</label>
         <input id="venusMass" type="range" min="1e22" max="1e30" value="4.87e24">
         <span id="venusMassValue">4.87e24</span>
-
         <label for="venusVelocity">Velocity (m/s):</label>
         <input id="venusVelocity" type="range" min="10000" max="50000" value="35000">
         <span id="venusVelocityValue">35000</span>
       </div>
-
       <div id="marsControls">
         <h4>Mars</h4>
         <label for="marsMass">Mass (kg):</label>
         <input id="marsMass" type="range" min="1e22" max="1e30" value="6.42e23">
         <span id="marsMassValue">6.42e23</span>
-
         <label for="marsVelocity">Velocity (m/s):</label>
         <input id="marsVelocity" type="range" min="10000" max="50000" value="24000">
         <span id="marsVelocityValue">24000</span>
       </div>
-
       <div id="jupiterControls">
         <h4>Jupiter</h4>
         <label for="jupiterMass">Mass (kg):</label>
         <input id="jupiterMass" type="range" min="1e22" max="1e30" value="1.9e27">
         <span id="jupiterMassValue">1.9e27</span>
-
         <label for="jupiterVelocity">Velocity (m/s):</label>
         <input id="jupiterVelocity" type="range" min="10000" max="50000" value="13000">
         <span id="jupiterVelocityValue">13000</span>
       </div>
     </div>
   </div>
-
   <canvas id="orbitCanvas" width="800" height="800"></canvas>
-  <!-- Tooltip -->
   <div id="tooltip"></div>
-
   <script>
-
-    const G = 6.6743e-11;
-    const AU = 1.496e11;
-    const day = 24 * 3600;
-
-    const canvas = document.getElementById('orbitCanvas');
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-
-    let scale = width / (10 * AU);
-    let offsetX = width / 2;
-    let offsetY = height / 2;
-
+    const G = 6.6743e-11, AU = 1.496e11, day = 24*3600;
+    const canvas = document.getElementById('orbitCanvas'), ctx = canvas.getContext('2d');
+    const width = canvas.width, height = canvas.height;
+    let scale = width / (10 * AU), offsetX = width/2, offsetY = height/2;
     let dragStartX = 0, dragStartY = 0, isDragging = false;
-
-    const speedControl = document.getElementById('speedControl');
-    const speedValue = document.getElementById('speedValue');
-    let speedMultiplier = Number(speedControl.value);
-    let elapsedTime = 0;
-    speedControl.addEventListener('input', () => {
-      speedMultiplier = Number(speedControl.value);
-      speedValue.textContent = `Simulation Speed: ${speedControl.value}`;
-    });
-
+    const speedControl = document.getElementById('speedControl'), speedValue = document.getElementById('speedValue');
+    let speedMultiplier = Number(speedControl.value), elapsedTime = 0;
+    speedControl.addEventListener('input', () => { speedMultiplier = Number(speedControl.value); speedValue.textContent = "Simulation Speed: " + speedControl.value; });
     const tooltip = document.getElementById('tooltip');
-
-    let asteroidMode = false;
-    let asteroidTempPosition = null; 
-
+    let asteroidMode = false, asteroidTempPosition = null;
     let bodies = [
-      { name: "Sun", mass: 1.99e30, position: [0, 0], velocity: [0, 0], rotation: 0, color: 'orange',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white.jpg',
-        info: "Sun: 1.0 Sol, center of our solar system.", showMoons: false },
-      { name: "Mercury", mass: 3.3e23, position: [0.39 * AU, 0], velocity: [0, 47800], rotation: 0, color: 'gray',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg',
-        info: "Mercury: 0.39 AU, 88-day orbit.", showMoons: false },
-      { name: "Venus", mass: 4.87e24, position: [0.72 * AU, 0], velocity: [0, 35000], rotation: 0, color: 'yellow',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg',
-        info: "Venus: 0.72 AU, 225-day orbit.", showMoons: false },
-      { name: "Earth", mass: 5.97e24, position: [1 * AU, 0], velocity: [0, 30000], rotation: 0, color: 'blue',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg',
-        info: "Earth: 1 AU, 365-day orbit.", showMoons: false },
-      { name: "Mars", mass: 6.42e23, position: [1.52 * AU, 0], velocity: [0, 24000], rotation: 0, color: 'red',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg',
-        info: "Mars: 1.52 AU, 687-day orbit.", showMoons: false },
-      { name: "Jupiter", mass: 1.9e27, position: [5.2 * AU, 0], velocity: [0, 13000], rotation: 0, color: 'orange',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg',
-        info: "Jupiter: 5.2 AU, 4331-day orbit.", showMoons: false },
-      { name: "Saturn", mass: 5.68e26, position: [9.58 * AU, 0], velocity: [0, 9700], rotation: 0, color: 'goldenrod',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg',
-        info: "Saturn: 9.58 AU, 10759-day orbit.", showMoons: false },
-      { name: "Uranus", mass: 8.68e25, position: [19.2 * AU, 0], velocity: [0, 6800], rotation: 0, color: 'lightblue',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg',
-        info: "Uranus: 19.2 AU, 30687-day orbit.", showMoons: false },
-      { name: "Neptune", mass: 1.02e26, position: [30.05 * AU, 0], velocity: [0, 5430], rotation: 0, color: 'darkblue',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_Full.jpg',
-        info: "Neptune: 30.05 AU, 60190-day orbit.", showMoons: false },
-      { name: "Pluto", mass: 1.31e22, position: [39.48 * AU, 0], velocity: [0, 4740], rotation: 0, color: 'white',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Nh-pluto-in-true-color_2x_JPEG.jpg',
-        info: "Pluto: 39.48 AU, 90560-day orbit.", showMoons: false },
-      { name: "Ceres", mass: 9.39e20, position: [2.77 * AU, 0], velocity: [0, 17900], rotation: 0, color: 'darkgray',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/0/09/Ceres_-_Vesta_mosaic.jpg',
-        info: "Ceres: 2.77 AU, 1680-day orbit.", showMoons: false },
-      { name: "Eris", mass: 1.66e22, position: [67.67 * AU, 0], velocity: [0, 3500], rotation: 0, color: 'purple',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Eris_in_true_color.jpg',
-        info: "Eris: 67.67 AU, 203600-day orbit.", showMoons: false },
-      { name: "Haumea", mass: 4.01e21, position: [43.13 * AU, 0], velocity: [0, 4000], rotation: 0, color: 'magenta',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/6/6f/Haumea_%28small_planet%29.jpg',
-        info: "Haumea: 43.13 AU, 103400-day orbit.", showMoons: false },
-      { name: "Makemake", mass: 3e21, position: [45.79 * AU, 0], velocity: [0, 4000], rotation: 0, color: 'orange',
-        image: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Makemake_in_true_color.jpg',
-        info: "Makemake: 45.79 AU, 112897-day orbit.", showMoons: false }
+      { name:"Sun", mass:1.99e30, position:[0,0], velocity:[0,0], rotation:0, color:'orange', image:'https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white.jpg', info:"Sun: 1.0 Sol, center of our solar system.", showMoons:false },
+      { name:"Mercury", mass:3.3e23, position:[0.39*AU,0], velocity:[0,47800], rotation:0, color:'gray', image:'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg', info:"Mercury: 0.39 AU, 88-day orbit.", showMoons:false },
+      { name:"Venus", mass:4.87e24, position:[0.72*AU,0], velocity:[0,35000], rotation:0, color:'yellow', image:'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg', info:"Venus: 0.72 AU, 225-day orbit.", showMoons:false },
+      { name:"Earth", mass:5.97e24, position:[1*AU,0], velocity:[0,30000], rotation:0, color:'blue', image:'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg', info:"Earth: 1 AU, 365-day orbit.", showMoons:false },
+      { name:"Mars", mass:6.42e23, position:[1.52*AU,0], velocity:[0,24000], rotation:0, color:'red', image:'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg', info:"Mars: 1.52 AU, 687-day orbit.", showMoons:false },
+      { name:"Jupiter", mass:1.9e27, position:[5.2*AU,0], velocity:[0,13000], rotation:0, color:'orange', image:'https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg', info:"Jupiter: 5.2 AU, 4331-day orbit.", showMoons:false },
+      { name:"Saturn", mass:5.68e26, position:[9.58*AU,0], velocity:[0,9700], rotation:0, color:'goldenrod', image:'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg', info:"Saturn: 9.58 AU, 10759-day orbit.", showMoons:false },
+      { name:"Uranus", mass:8.68e25, position:[19.2*AU,0], velocity:[0,6800], rotation:0, color:'lightblue', image:'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg', info:"Uranus: 19.2 AU, 30687-day orbit.", showMoons:false },
+      { name:"Neptune", mass:1.02e26, position:[30.05*AU,0], velocity:[0,5430], rotation:0, color:'darkblue', image:'https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_Full.jpg', info:"Neptune: 30.05 AU, 60190-day orbit.", showMoons:false },
+      { name:"Pluto", mass:1.31e22, position:[39.48*AU,0], velocity:[0,4740], rotation:0, color:'white', image:'https://upload.wikimedia.org/wikipedia/commons/2/2a/Nh-pluto-in-true-color_2x_JPEG.jpg', info:"Pluto: 39.48 AU, 90560-day orbit.", showMoons:false },
+      { name:"Ceres", mass:9.39e20, position:[2.77*AU,0], velocity:[0,17900], rotation:0, color:'darkgray', image:'https://upload.wikimedia.org/wikipedia/commons/0/09/Ceres_-_Vesta_mosaic.jpg', info:"Ceres: 2.77 AU, 1680-day orbit.", showMoons:false },
+      { name:"Eris", mass:1.66e22, position:[67.67*AU,0], velocity:[0,3500], rotation:0, color:'purple', image:'https://upload.wikimedia.org/wikipedia/commons/8/89/Eris_in_true_color.jpg', info:"Eris: 67.67 AU, 203600-day orbit.", showMoons:false },
+      { name:"Haumea", mass:4.01e21, position:[43.13*AU,0], velocity:[0,4000], rotation:0, color:'magenta', image:'https://upload.wikimedia.org/wikipedia/commons/6/6f/Haumea_%28small_planet%29.jpg', info:"Haumea: 43.13 AU, 103400-day orbit.", showMoons:false },
+      { name:"Makemake", mass:3e21, position:[45.79*AU,0], velocity:[0,4000], rotation:0, color:'orange', image:'https://upload.wikimedia.org/wikipedia/commons/e/ea/Makemake_in_true_color.jpg', info:"Makemake: 45.79 AU, 112897-day orbit.", showMoons:false }
     ];
-
-    bodies.push({
-      name: "Moon",
-      mass: 7.35e22,
-      position: [1 * AU + 3.844e8, 0],
-      velocity: [0, 30000 + 1022],
-      rotation: 0,
-      color: 'lightgray',
-      image: 'https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg',
-      info: "Moon: Earth's satellite (~384,400 km away).",
-      isMoon: true,
-      parent: "Earth"
-    });
-
-    bodies.push({
-      name: "Io",
-      mass: 8.93e22,
-      position: [5.2 * AU + 4.217e8, 0],
-      velocity: [0, 13000 + 1730],
-      rotation: 0,
-      color: 'goldenrod',
-      image: 'https://upload.wikimedia.org/wikipedia/commons/9/98/Io_highest_resolution_true_color.jpg',
-      info: "Io: Jupiter’s volcanic moon.",
-      isMoon: true,
-      parent: "Jupiter"
-    });
-
+    bodies.push({ name:"Moon", mass:7.35e22, position:[1*AU+3.844e8,0], velocity:[0,30000+1022], rotation:0, color:'lightgray', image:'https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg', info:"Moon: Earth's satellite (~384,400 km away).", isMoon:true, parent:"Earth" });
+    bodies.push({ name:"Io", mass:8.93e22, position:[5.2*AU+4.217e8,0], velocity:[0,13000+1730], rotation:0, color:'goldenrod', image:'https://upload.wikimedia.org/wikipedia/commons/9/98/Io_highest_resolution_true_color.jpg', info:"Io: Jupiter’s volcanic moon.", isMoon:true, parent:"Jupiter" });
     let positions = bodies.map(b => b.position.slice());
     let velocities = bodies.map(b => b.velocity.slice());
     let masses = bodies.map(b => b.mass);
     let rotations = bodies.map(b => b.rotation);
     const dt = 0.1 * day;
     const trails = bodies.map(() => []);
-
     canvas.addEventListener('dblclick', (e) => {
+      e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       for (let i = 0; i < bodies.length; i++) {
-
         if (bodies[i].isMoon) continue;
         const [x, y] = positions[i];
         const canvasX = offsetX + x * scale;
         const canvasY = offsetY + y * scale;
-        const dx = mouseX - canvasX;
-        const dy = mouseY - canvasY;
-        if (Math.sqrt(dx*dx + dy*dy) < 8) {
-
+        const dx = mouseX - canvasX, dy = mouseY - canvasY;
+        if (Math.sqrt(dx*dx+dy*dy) < 10) {
           offsetX = width/2 - x * scale;
           offsetY = height/2 - y * scale;
           scale *= 2;
-
-          bodies.forEach(b => {
-            if (!b.isMoon) b.showMoons = false;
-          });
+          bodies.forEach(b => { if (!b.isMoon) b.showMoons = false; });
           bodies[i].showMoons = true;
           break;
         }
       }
     });
-
     function showTooltip(e, text) {
       tooltip.innerHTML = text;
-      tooltip.style.left = (e.pageX + 15) + 'px';
-      tooltip.style.top = (e.pageY + 15) + 'px';
-      tooltip.style.display = 'block';
+      tooltip.style.left = (e.pageX + 15) + "px";
+      tooltip.style.top = (e.pageY + 15) + "px";
+      tooltip.style.display = "block";
     }
     function hideTooltip() {
-      tooltip.style.display = 'none';
+      tooltip.style.display = "none";
     }
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -354,7 +255,6 @@
       const mouseY = e.clientY - rect.top;
       let found = false;
       for (let i = 0; i < bodies.length; i++) {
-
         if (bodies[i].isMoon) {
           const parent = bodies.find(b => b.name === bodies[i].parent);
           if (!parent || !parent.showMoons) continue;
@@ -362,12 +262,10 @@
         const [x, y] = positions[i];
         const canvasX = offsetX + x * scale;
         const canvasY = offsetY + y * scale;
-        const dx = mouseX - canvasX;
-        const dy = mouseY - canvasY;
-
-        if (Math.sqrt(dx*dx + dy*dy) < 10) {
+        const dx = mouseX - canvasX, dy = mouseY - canvasY;
+        if (Math.sqrt(dx*dx+dy*dy) < 10) {
           const b = bodies[i];
-          showTooltip(e, `<strong>${b.name}</strong><br>${b.info}<br><img src="${b.image}" alt="${b.name}">`);
+          showTooltip(e, "<strong>" + b.name + "</strong><br>" + b.info + "<br><img src='" + b.image + "' alt='" + b.name + "'>");
           found = true;
           break;
         }
@@ -375,7 +273,6 @@
       if (!found) hideTooltip();
     });
     canvas.addEventListener('click', (e) => {
-
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -387,28 +284,23 @@
         const [x, y] = positions[i];
         const canvasX = offsetX + x * scale;
         const canvasY = offsetY + y * scale;
-        const dx = mouseX - canvasX;
-        const dy = mouseY - canvasY;
-        if (Math.sqrt(dx*dx + dy*dy) < 10) {
+        const dx = mouseX - canvasX, dy = mouseY - canvasY;
+        if (Math.sqrt(dx*dx+dy*dy) < 10) {
           const b = bodies[i];
-          showTooltip(e, `<strong>${b.name}</strong><br>${b.info}<br><img src="${b.image}" alt="${b.name}">`);
+          showTooltip(e, "<strong>" + b.name + "</strong><br>" + b.info + "<br><img src='" + b.image + "' alt='" + b.name + "'>");
           break;
         }
       }
     });
-
     document.getElementById('addAsteroid').addEventListener('click', () => {
       asteroidMode = true;
       asteroidTempPosition = null;
-      alert("Asteroid mode: Click on canvas for starting position, then click for velocity direction.");
+      alert("Asteroid mode: Click for starting position then click for velocity direction.");
     });
-
     canvas.addEventListener('mousedown', (e) => {
       if (asteroidMode) {
-        e.stopPropagation();
-        e.preventDefault();
+        e.stopPropagation(); e.preventDefault();
         const rect = canvas.getBoundingClientRect();
-
         const simX = (e.clientX - rect.left - offsetX) / scale;
         const simY = (e.clientY - rect.top - offsetY) / scale;
         if (!asteroidTempPosition) {
@@ -420,17 +312,8 @@
           const mass = Number(document.getElementById('asteroidMass').value);
           const speedFactor = Number(document.getElementById('asteroidSpeed').value);
           const mag = Math.sqrt(velDir[0]*velDir[0] + velDir[1]*velDir[1]);
-          const vel = mag === 0 ? [0, 0] : [ (velDir[0]/mag) * speedFactor, (velDir[1]/mag) * speedFactor ];
-          const asteroid = {
-            name: "Asteroid",
-            mass: mass,
-            position: [pos[0], pos[1]],
-            velocity: vel,
-            rotation: 0,
-            color: 'lime',
-            image: 'https://upload.wikimedia.org/wikipedia/commons/1/1f/Asteroid_sample.jpg',
-            info: `Asteroid: ~${(Math.hypot(pos[0], pos[1]) / AU).toFixed(2)} AU, mass ${mass.toExponential(2)} kg`
-          };
+          const vel = mag === 0 ? [0,0] : [ (velDir[0]/mag)*speedFactor, (velDir[1]/mag)*speedFactor ];
+          const asteroid = { name:"Asteroid", mass:mass, position:[pos[0],pos[1]], velocity:vel, rotation:0, color:"lime", image:"https://upload.wikimedia.org/wikipedia/commons/1/1f/Asteroid_sample.jpg", info:"Asteroid: ~" + (Math.hypot(pos[0],pos[1])/AU).toFixed(2) + " AU, mass " + mass.toExponential(2) + " kg" };
           bodies.push(asteroid);
           positions.push(asteroid.position.slice());
           velocities.push(asteroid.velocity.slice());
@@ -442,112 +325,90 @@
         }
       }
     });
-
     document.getElementById('removeBody').addEventListener('click', () => {
-
-      if (bodies.length > 14) {
-        bodies.pop();
-        positions.pop();
-        velocities.pop();
-        masses.pop();
-        rotations.pop();
-        trails.pop();
+      if(bodies.length > 14) {
+        bodies.pop(); positions.pop(); velocities.pop(); masses.pop(); rotations.pop(); trails.pop();
       }
     });
-
     document.getElementById('resetButton').addEventListener('click', () => {
-      for (let i = 0; i < trails.length; i++) {
-        trails[i] = [];
-      }
+      for(let i = 0; i < trails.length; i++) { trails[i] = []; }
     });
-
     function computeAccelerations(positions, masses) {
-      const accelerations = positions.map(() => [0, 0]);
-      for (let i = 0; i < masses.length; i++) {
-        for (let j = 0; j < masses.length; j++) {
-          if (i !== j) {
-            const dx = positions[j][0] - positions[i][0];
-            const dy = positions[j][1] - positions[i][1];
-            const r = Math.sqrt(dx * dx + dy * dy);
-            const force = (G * masses[j]) / (r * r + 1e16);
-            const ax = (force * dx) / r;
-            const ay = (force * dy) / r;
-            accelerations[i][0] += ax;
-            accelerations[i][1] += ay;
+      const accelerations = positions.map(() => [0,0]);
+      for(let i = 0; i < masses.length; i++){
+        for(let j = 0; j < masses.length; j++){
+          if(i!==j){
+            let dx = positions[j][0]-positions[i][0], dy = positions[j][1]-positions[i][1];
+            let r = Math.sqrt(dx*dx+dy*dy);
+            let force = (G*masses[j])/(r*r+1e16);
+            accelerations[i][0] += force*dx/r;
+            accelerations[i][1] += force*dy/r;
           }
         }
       }
       return accelerations;
     }
     function updatePositionsAndVelocities(positions, velocities, masses, dt) {
-      const accelerations = computeAccelerations(positions, masses);
-      for (let i = 0; i < positions.length; i++) {
-        velocities[i][0] += accelerations[i][0] * dt;
-        velocities[i][1] += accelerations[i][1] * dt;
-        positions[i][0] += velocities[i][0] * dt;
-        positions[i][1] += velocities[i][1] * dt;
+      const acc = computeAccelerations(positions, masses);
+      for(let i = 0; i < positions.length; i++){
+        velocities[i][0] += acc[i][0]*dt;
+        velocities[i][1] += acc[i][1]*dt;
+        positions[i][0] += velocities[i][0]*dt;
+        positions[i][1] += velocities[i][1]*dt;
       }
     }
     function draw() {
-      ctx.clearRect(0, 0, width, height);
-
+      ctx.clearRect(0,0,width,height);
       trails.forEach((trail, i) => {
         ctx.beginPath();
-        trail.forEach(([x, y], index) => {
-          const canvasX = offsetX + x * scale;
-          const canvasY = offsetY + y * scale;
-          if (index === 0) ctx.moveTo(canvasX, canvasY);
-          else ctx.lineTo(canvasX, canvasY);
+        trail.forEach(([x,y], index) => {
+          const canvasX = offsetX + x*scale, canvasY = offsetY + y*scale;
+          index===0 ? ctx.moveTo(canvasX,canvasY) : ctx.lineTo(canvasX,canvasY);
         });
         ctx.strokeStyle = bodies[i].color;
         ctx.stroke();
       });
-
-      bodies.forEach((body, i) => {
-
-        if (body.isMoon) {
-          const parent = bodies.find(b => b.name === body.parent);
-          if (!parent || !parent.showMoons) return;
+      bodies.forEach((body,i) => {
+        if(body.isMoon){
+          let parent = bodies.find(b => b.name === body.parent);
+          if(!parent || !parent.showMoons) return;
         }
-        const [x, y] = positions[i];
-        const canvasX = offsetX + x * scale;
-        const canvasY = offsetY + y * scale;
+        const [x,y] = positions[i];
+        const canvasX = offsetX + x*scale, canvasY = offsetY + y*scale;
         ctx.beginPath();
-
-        const radius = body.isMoon ? 3 : 5;
-        ctx.arc(canvasX, canvasY, radius, 0, 2 * Math.PI);
+        let radius = body.isMoon ? 3 : 5;
+        ctx.arc(canvasX, canvasY, radius, 0, 2*Math.PI);
         ctx.fillStyle = body.color;
         ctx.fill();
       });
     }
     function updateTime() {
-      elapsedTime += dt * speedMultiplier;
-      const years = Math.floor(elapsedTime / (365.25 * day));
-      const months = Math.floor((elapsedTime % (365.25 * day)) / (30 * day));
-      const days = Math.floor((elapsedTime % (30 * day)) / day);
-      const hours = Math.floor((elapsedTime % day) / 3600);
-      document.getElementById('timeValue').textContent = `${years} years, ${months} months, ${days} days, ${hours} hours`;
+      elapsedTime += dt*speedMultiplier;
+      let years = Math.floor(elapsedTime/(365.25*day));
+      let months = Math.floor((elapsedTime%(365.25*day))/(30*day));
+      let days = Math.floor((elapsedTime%(30*day))/day);
+      let hours = Math.floor((elapsedTime%day)/3600);
+      document.getElementById('timeValue').textContent = years + " years, " + months + " months, " + days + " days, " + hours + " hours";
     }
     function simulate() {
-      for (let step = 0; step < speedMultiplier; step++) {
+      for(let step=0; step<speedMultiplier; step++){
         updatePositionsAndVelocities(positions, velocities, masses, dt);
-        positions.forEach((pos, i) => trails[i].push(pos.slice()));
+        positions.forEach((pos,i)=>{ trails[i].push(pos.slice()); });
       }
       draw();
       updateTime();
       requestAnimationFrame(simulate);
     }
     simulate();
-
     canvas.addEventListener('mousedown', (e) => {
-      if (!asteroidMode) {
+      if(!asteroidMode){
         isDragging = true;
         dragStartX = e.clientX - offsetX;
         dragStartY = e.clientY - offsetY;
       }
     });
     canvas.addEventListener('mousemove', (e) => {
-      if (isDragging && !asteroidMode) {
+      if(isDragging && !asteroidMode){
         offsetX = e.clientX - dragStartX;
         offsetY = e.clientY - dragStartY;
       }
@@ -555,11 +416,15 @@
     canvas.addEventListener('mouseup', () => { isDragging = false; });
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      if (e.deltaY < 0) scale *= 1.1;
-      else scale /= 1.1;
+      let rect = canvas.getBoundingClientRect();
+      let mouseX = e.clientX - rect.left;
+      let mouseY = e.clientY - rect.top;
+      let oldScale = scale;
+      if(e.deltaY < 0) { scale *= 1.1; }
+      else { scale /= 1.1; }
+      offsetX = mouseX - (mouseX - offsetX) * (scale/oldScale);
+      offsetY = mouseY - (mouseY - offsetY) * (scale/oldScale);
     });
   </script>
-</body>
-</html>
 </body>
 </html>
