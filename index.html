@@ -68,7 +68,7 @@
     .manageButtons button {
       margin-bottom: 8px;
     }
-    /* New Asteroid controls */
+
     .asteroidControls {
       margin-top: 10px;
       background: #333;
@@ -79,7 +79,7 @@
       font-size: 13px;
       margin-top: 5px;
     }
-    /* Tooltip styling */
+
     #tooltip {
       position: absolute;
       background: rgba(0,0,0,0.8);
@@ -204,29 +204,22 @@
   <div id="tooltip"></div>
 
   <script>
-    /***********************
-     * 2D ORBITAL SIMULATION WITH ENHANCED FEATURES
-     ***********************/
-    // Constants
+
     const G = 6.6743e-11;
     const AU = 1.496e11;
     const day = 24 * 3600;
 
-    // Canvas setup
     const canvas = document.getElementById('orbitCanvas');
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
 
-    // View variables
     let scale = width / (10 * AU);
     let offsetX = width / 2;
     let offsetY = height / 2;
 
-    // Dragging variables
     let dragStartX = 0, dragStartY = 0, isDragging = false;
 
-    // Simulation speed and time
     const speedControl = document.getElementById('speedControl');
     const speedValue = document.getElementById('speedValue');
     let speedMultiplier = Number(speedControl.value);
@@ -236,16 +229,11 @@
       speedValue.textContent = `Simulation Speed: ${speedControl.value}`;
     });
 
-    // Tooltip element
     const tooltip = document.getElementById('tooltip');
 
-    // State for asteroid placement mode
     let asteroidMode = false;
-    let asteroidTempPosition = null; // first click position for new asteroid
+    let asteroidTempPosition = null; 
 
-    // Data structure for bodies.
-    // For moons, add property isMoon:true and parent:"PlanetName"
-    // Also add showMoons property (default false) for planets.
     let bodies = [
       { name: "Sun", mass: 1.99e30, position: [0, 0], velocity: [0, 0], rotation: 0, color: 'orange',
         image: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white.jpg',
@@ -291,8 +279,6 @@
         info: "Makemake: 45.79 AU, 112897-day orbit.", showMoons: false }
     ];
 
-    // Add moons as separate bodies with isMoon:true and parent property.
-    // For example, Earth's Moon:
     bodies.push({
       name: "Moon",
       mass: 7.35e22,
@@ -305,7 +291,7 @@
       isMoon: true,
       parent: "Earth"
     });
-    // Jupiter’s Io:
+
     bodies.push({
       name: "Io",
       mass: 8.93e22,
@@ -319,10 +305,6 @@
       parent: "Jupiter"
     });
 
-    // For moons, we want them to appear at a smaller scale.
-    // We can decide that if a body has isMoon true, its drawn radius is 60% of the default.
-
-    // Prepare simulation arrays from bodies data.
     let positions = bodies.map(b => b.position.slice());
     let velocities = bodies.map(b => b.velocity.slice());
     let masses = bodies.map(b => b.mass);
@@ -330,13 +312,12 @@
     const dt = 0.1 * day;
     const trails = bodies.map(() => []);
 
-    // --- Double-Click Zoom and Moon Reveal ---
     canvas.addEventListener('dblclick', (e) => {
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       for (let i = 0; i < bodies.length; i++) {
-        // Only consider non-moons for zoom (planets and Sun)
+
         if (bodies[i].isMoon) continue;
         const [x, y] = positions[i];
         const canvasX = offsetX + x * scale;
@@ -344,11 +325,11 @@
         const dx = mouseX - canvasX;
         const dy = mouseY - canvasY;
         if (Math.sqrt(dx*dx + dy*dy) < 8) {
-          // Center view on this body and zoom in.
+
           offsetX = width/2 - x * scale;
           offsetY = height/2 - y * scale;
           scale *= 2;
-          // Set showMoons true for this body and false for others.
+
           bodies.forEach(b => {
             if (!b.isMoon) b.showMoons = false;
           });
@@ -358,7 +339,6 @@
       }
     });
 
-    // --- Tooltip on Hover/Click with NASA-like Info ---
     function showTooltip(e, text) {
       tooltip.innerHTML = text;
       tooltip.style.left = (e.pageX + 15) + 'px';
@@ -374,9 +354,8 @@
       const mouseY = e.clientY - rect.top;
       let found = false;
       for (let i = 0; i < bodies.length; i++) {
-        // If body is a moon, only show it if its parent has showMoons true.
+
         if (bodies[i].isMoon) {
-          // Find parent by name.
           const parent = bodies.find(b => b.name === bodies[i].parent);
           if (!parent || !parent.showMoons) continue;
         }
@@ -385,7 +364,8 @@
         const canvasY = offsetY + y * scale;
         const dx = mouseX - canvasX;
         const dy = mouseY - canvasY;
-        if (Math.sqrt(dx*dx + dy*dy) < 8) {
+
+        if (Math.sqrt(dx*dx + dy*dy) < 10) {
           const b = bodies[i];
           showTooltip(e, `<strong>${b.name}</strong><br>${b.info}<br><img src="${b.image}" alt="${b.name}">`);
           found = true;
@@ -395,7 +375,7 @@
       if (!found) hideTooltip();
     });
     canvas.addEventListener('click', (e) => {
-      // On click, also show tooltip (until mouse moves away)
+
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -409,7 +389,7 @@
         const canvasY = offsetY + y * scale;
         const dx = mouseX - canvasX;
         const dy = mouseY - canvasY;
-        if (Math.sqrt(dx*dx + dy*dy) < 8) {
+        if (Math.sqrt(dx*dx + dy*dy) < 10) {
           const b = bodies[i];
           showTooltip(e, `<strong>${b.name}</strong><br>${b.info}<br><img src="${b.image}" alt="${b.name}">`);
           break;
@@ -417,19 +397,18 @@
       }
     });
 
-    // --- Add/Remove Bodies ---
-    // Interactive Asteroid addition:
-    // When "Add Asteroid" is clicked, enter asteroidMode.
     document.getElementById('addAsteroid').addEventListener('click', () => {
       asteroidMode = true;
       asteroidTempPosition = null;
       alert("Asteroid mode: Click on canvas for starting position, then click for velocity direction.");
     });
-    // In asteroidMode, use clicks on canvas.
+
     canvas.addEventListener('mousedown', (e) => {
       if (asteroidMode) {
+        e.stopPropagation();
+        e.preventDefault();
         const rect = canvas.getBoundingClientRect();
-        // Convert canvas coordinates back to simulation coordinates:
+
         const simX = (e.clientX - rect.left - offsetX) / scale;
         const simY = (e.clientY - rect.top - offsetY) / scale;
         if (!asteroidTempPosition) {
@@ -438,12 +417,9 @@
         } else {
           const pos = asteroidTempPosition;
           const velDir = [simX - pos[0], simY - pos[1]];
-          // Get asteroid mass and speed factor from inputs:
           const mass = Number(document.getElementById('asteroidMass').value);
           const speedFactor = Number(document.getElementById('asteroidSpeed').value);
-          // Calculate velocity magnitude:
           const mag = Math.sqrt(velDir[0]*velDir[0] + velDir[1]*velDir[1]);
-          // Normalize and scale:
           const vel = mag === 0 ? [0, 0] : [ (velDir[0]/mag) * speedFactor, (velDir[1]/mag) * speedFactor ];
           const asteroid = {
             name: "Asteroid",
@@ -467,9 +443,8 @@
       }
     });
 
-    // Remove Last Body (only remove bodies added after the original ones)
     document.getElementById('removeBody').addEventListener('click', () => {
-      // Assume original bodies count is 14 (Sun + 13 planets/dwarf planets)
+
       if (bodies.length > 14) {
         bodies.pop();
         positions.pop();
@@ -480,7 +455,12 @@
       }
     });
 
-    // --- Original Physics and Drawing Functions ---
+    document.getElementById('resetButton').addEventListener('click', () => {
+      for (let i = 0; i < trails.length; i++) {
+        trails[i] = [];
+      }
+    });
+
     function computeAccelerations(positions, masses) {
       const accelerations = positions.map(() => [0, 0]);
       for (let i = 0; i < masses.length; i++) {
@@ -510,7 +490,7 @@
     }
     function draw() {
       ctx.clearRect(0, 0, width, height);
-      // Draw trails.
+
       trails.forEach((trail, i) => {
         ctx.beginPath();
         trail.forEach(([x, y], index) => {
@@ -522,9 +502,9 @@
         ctx.strokeStyle = bodies[i].color;
         ctx.stroke();
       });
-      // Draw bodies.
+
       bodies.forEach((body, i) => {
-        // For moons, only draw if parent's showMoons is true.
+
         if (body.isMoon) {
           const parent = bodies.find(b => b.name === body.parent);
           if (!parent || !parent.showMoons) return;
@@ -533,7 +513,7 @@
         const canvasX = offsetX + x * scale;
         const canvasY = offsetY + y * scale;
         ctx.beginPath();
-        // Moons are drawn smaller (e.g. radius 3) than planets (radius 5).
+
         const radius = body.isMoon ? 3 : 5;
         ctx.arc(canvasX, canvasY, radius, 0, 2 * Math.PI);
         ctx.fillStyle = body.color;
@@ -559,7 +539,6 @@
     }
     simulate();
 
-    // --- Dragging and Zooming for panning ---
     canvas.addEventListener('mousedown', (e) => {
       if (!asteroidMode) {
         isDragging = true;
@@ -580,5 +559,7 @@
       else scale /= 1.1;
     });
   </script>
+</body>
+</html>
 </body>
 </html>
