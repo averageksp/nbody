@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>2D Orbital Simulation – Enhanced UI</title>
+<title>Solar System Simulation – Full System</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -149,7 +149,25 @@ const bodies = [
   {name: 'Mercury', mass: 3.3e23, a: 0.39, e: 0.206, color: 'gray', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg', info: 'Mercury, closest to Sun.'},
   {name: 'Venus', mass: 4.87e24, a: 0.72, e: 0.007, color: 'gold', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg', info: 'Venus, Earth’s sister.'},
   {name: 'Earth', mass: 5.97e24, a: 1.0, e: 0.017, color: 'blue', img: 'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg', info: 'Our home planet.'},
-  {name: 'Mars', mass: 6.42e23, a: 1.52, e: 0.093, color: 'red', img: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg', info: 'Mars, the red planet.'}
+  {name: 'Mars', mass: 6.42e23, a: 1.52, e: 0.093, color: 'red', img: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg', info: 'Mars, the red planet.'},
+  {name: 'Jupiter', mass: 1.9e27, a: 5.2, e: 0.049, color: 'brown', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4f/Jupiter_Amalthea_print.jpg', info: 'Jupiter, the largest planet.'},
+  {name: 'Saturn', mass: 5.68e26, a: 9.58, e: 0.056, color: 'gold', img: 'https://upload.wikimedia.org/wikipedia/commons/9/94/Saturn_%28planet%29.jpg', info: 'Saturn, known for its rings.'},
+  {name: 'Uranus', mass: 8.68e25, a: 19.18, e: 0.046, color: 'lightblue', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e3/Uranus2.jpg', info: 'Uranus, tilted rotation.'},
+  {name: 'Neptune', mass: 1.02e26, a: 30.07, e: 0.010, color: 'darkblue', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e1/Neptune_Full.jpg', info: 'Neptune, the wind giant.'},
+  {name: 'Pluto', mass: 1.31e22, a: 39.48, e: 0.248, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/d/d7/Pluto_in_True_Colour.jpg', info: 'Pluto, a dwarf planet.'}
+];
+
+const moons = [
+  {planet: 'Earth', name: 'Moon', mass: 7.35e22, a: 0.00257, e: 0.055, color: 'lightgray', img: 'https://upload.wikimedia.org/wikipedia/commons/4/42/FullMoon2010.jpg', info: 'Earth\'s Moon.'},
+  {planet: 'Mars', name: 'Phobos', mass: 1.0659e16, a: 0.00094, e: 0.015, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Phobos_2008.jpg', info: 'Phobos, a moon of Mars.'},
+  {planet: 'Mars', name: 'Deimos', mass: 1.4762e15, a: 0.0023, e: 0.000, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Deimos_moon.jpg', info: 'Deimos, a moon of Mars.'},
+  {planet: 'Jupiter', name: 'Io', mass: 8.93e22, a: 0.0028, e: 0.004, color: 'yellow', img: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Io_True_Color.jpg', info: 'Io, a volcanic moon of Jupiter.'},
+  {planet: 'Jupiter', name: 'Europa', mass: 4.80e22, a: 0.0035, e: 0.010, color: 'white', img: 'https://upload.wikimedia.org/wikipedia/commons/4/47/Europa_%28moon%29.jpg', info: 'Europa, a moon of Jupiter.'},
+  {planet: 'Jupiter', name: 'Ganymede', mass: 1.48e23, a: 0.0052, e: 0.001, color: 'brown', img: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/Ganymede_high_resolution.jpg', info: 'Ganymede, largest moon in the Solar System.'},
+  {planet: 'Saturn', name: 'Titan', mass: 1.35e23, a: 0.008, e: 0.029, color: 'orange', img: 'https://upload.wikimedia.org/wikipedia/commons/6/60/Titan_in_true_color.jpg', info: 'Titan, Saturn\'s largest moon.'},
+  {planet: 'Saturn', name: 'Enceladus', mass: 1.08e20, a: 0.00024, e: 0.004, color: 'lightblue', img: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Enceladus_%28moon%29.jpg', info: 'Enceladus, moon of Saturn.'},
+  {planet: 'Uranus', name: 'Miranda', mass: 6.6e19, a: 0.00023, e: 0.001, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Miranda_Uranus.jpg', info: 'Miranda, a moon of Uranus.'},
+  {planet: 'Neptune', name: 'Triton', mass: 2.14e22, a: 0.004, e: 0.000, color: 'darkgrey', img: 'https://upload.wikimedia.org/wikipedia/commons/1/1b/Triton.jpg', info: 'Triton, Neptune\'s largest moon.'}
 ];
 
 let positions = [], velocities = [], masses = [], trails = [];
@@ -165,6 +183,17 @@ bodies.forEach(b => {
     positions.push([x, y]);
     velocities.push([0, v]);
   }
+  trails.push([]);
+});
+
+moons.forEach(m => {
+  const planet = bodies.find(p => p.name === m.planet);
+  let a = m.a * planet.a * AU, e = m.e;
+  let x = a * (1 + e), y = 0;
+  let v = Math.sqrt(G * planet.mass * (1 - e) / (a * (1 + e)));
+  positions.push([x, y]);
+  velocities.push([0, v]);
+  masses.push(m.mass);
   trails.push([]);
 });
 
@@ -229,6 +258,16 @@ function draw() {
     ctx.fillStyle = bodies[i].color;
     ctx.fill();
   }
+
+  for (let i = bodies.length; i < positions.length; i++) {
+    const [x, y] = positions[i];
+    const sx = offsetX + x * scale;
+    const sy = offsetY + y * scale;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2, 0, 2 * Math.PI);
+    ctx.fillStyle = 'white';
+    ctx.fill();
+  }
 }
 
 canvas.addEventListener('mousemove', e => {
@@ -250,12 +289,10 @@ canvas.addEventListener('mousemove', e => {
 });
 
 function animate() {
-  for (let i = 0; i < speed; i++) {
-    update();
-    elapsed += day * 0.1;
-  }
-  timeValue.textContent = formatTime(elapsed);
+  elapsed += speed;
+  update();
   draw();
+  timeValue.textContent = formatTime(elapsed);
   requestAnimationFrame(animate);
 }
 
