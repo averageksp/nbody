@@ -1,279 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Solar System Simulation – Full System with Gravity, Asteroids, Zoom & Pan</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #121212;
-    color: #eee;
-    font-family: sans-serif;
-    overflow: hidden;
-  }
-  canvas {
-    display: block;
-    background: #000;
-  }
-  #tooltip {
-    position: fixed;
-    pointer-events: none;
-    background: rgba(20,20,20,0.9);
-    color: #eee;
-    padding: 8px;
-    border-radius: 6px;
-    font-size: 13px;
-    display: none;
-    max-width: 160px;
-    z-index: 10;
-  }
-  #tooltip img {
-    max-width: 100%;
-    border-radius: 4px;
-    margin-top: 6px;
-  }
-  #menuToggle {
-    position: fixed;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 20;
-    background: #1e1e1e;
-    border: none;
-    border-radius: 4px;
-    color: #eee;
-    padding: 8px 12px;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  #sidebar {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translate(-50%,100%);
-    width: 100%;
-    max-width: 600px;
-    height: 300px;
-    background: #1e1e1e;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.6);
-    padding: 20px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    transition: transform 0.3s ease;
-    z-index: 15;
-  }
-  #sidebar.open {
-    transform: translate(-50%,0);
-  }
-  #sidebar h2 {
-    text-align: center;
-    margin-bottom: 12px;
-  }
-  #sidebar label, #sidebar span, #sidebar button, #sidebar input {
-    display: block;
-    width: 100%;
-    margin-bottom: 10px;
-  }
-  #sidebar input, #sidebar button {
-    padding: 6px;
-    border: none;
-    border-radius: 4px;
-    background: #2a2a2a;
-    color: #eee;
-  }
-  #sidebar button:hover {
-    background: #3a3a3a;
-  }
-  #sidebar .info {
-    background: #2a2a2a;
-    padding: 10px;
-    border-radius: 6px;
-    margin-bottom: 12px;
-  }
-  #sidebar small {
-    color: #aaa;
-  }
-</style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>2D Orbital Simulation – Full Solar System</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #121212;
+            color: #eee;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background: #000;
+            flex-grow: 1;
+        }
+        #tooltip {
+            position: fixed;
+            pointer-events: none;
+            background: rgba(20,20,20,0.9);
+            color: #eee;
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: none;
+            max-width: 160px;
+            z-index: 10;
+        }
+        #tooltip img {
+            max-width: 100%;
+            border-radius: 4px;
+            margin-top: 6px;
+        }
+        #sidebar {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            height: 50%;
+            background: #1e1e1e;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.6);
+            padding: 20px;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 15;
+        }
+        #sidebar h2 {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        #sidebar input, #sidebar button {
+            padding: 6px;
+            border: none;
+            border-radius: 4px;
+            background: #2a2a2a;
+            color: #eee;
+        }
+        #sidebar button:hover {
+            background: #3a3a3a;
+        }
+    </style>
 </head>
 <body>
 <canvas id="orbitCanvas"></canvas>
 <div id="tooltip"></div>
-<button id="menuToggle">☰ Controls</button>
 <div id="sidebar">
-  <h2>Simulation Controls</h2>
-  <label>Speed: <span id="speedValue">1</span></label>
-  <input id="speedControl" type="range" min="1" max="100" value="1"/>
-  <div class="info">
-    <strong>Time:</strong> <div id="timeValue">0y 0m 0d 0h</div>
-  </div>
-  <div class="info">
-    <button id="resetButton">Reset Trails</button>
-  </div>
-  <div class="info">
-    <button id="spawnAsteroidButton">Spawn Asteroid</button>
-  </div>
+    <h2>Simulation Controls</h2>
+    <label>Speed: <span id="speedValue">1</span></label>
+    <input id="speedControl" type="range" min="1" max="100" value="1"/>
+    <div class="info">
+        <strong>Time:</strong> <div id="timeValue">0y 0m 0d 0h</div>
+    </div>
+    <div class="info">
+        <button id="resetButton">Reset Trails</button>
+    </div>
 </div>
 
 <script>
-const G = 6.6743e-11, AU = 1.496e11, day = 24*3600;
-const canvas = document.getElementById('orbitCanvas');
-const ctx = canvas.getContext('2d');
-const tooltip = document.getElementById('tooltip');
-const sidebar = document.getElementById('sidebar');
-const btnMenu = document.getElementById('menuToggle');
-const speedSlider = document.getElementById('speedControl');
-const speedLabel = document.getElementById('speedValue');
-const timeValue = document.getElementById('timeValue');
-const resetButton = document.getElementById('resetButton');
-const spawnAsteroidButton = document.getElementById('spawnAsteroidButton');
+    const G = 6.6743e-11, AU = 1.496e11, day = 24*3600;
+    const canvas = document.getElementById('orbitCanvas');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+    const sidebar = document.getElementById('sidebar');
+    const speedSlider = document.getElementById('speedControl');
+    const speedLabel = document.getElementById('speedValue');
+    const timeValue = document.getElementById('timeValue');
+    const resetButton = document.getElementById('resetButton');
 
-let W = window.innerWidth, H = window.innerHeight;
-canvas.width = W; canvas.height = H;
+    let W = window.innerWidth, H = window.innerHeight;
+    canvas.width = W; canvas.height = H;
 
-let scale = W / (12 * AU);
-let offsetX = W / 2, offsetY = H / 2;
-let speed = parseInt(speedSlider.value);
-let elapsed = 0;
-let isDragging = false, dragStartX, dragStartY;
+    let scale = W / (12 * AU);
+    let offsetX = W / 2, offsetY = H / 2;
+    let speed = parseInt(speedSlider.value);
+    let elapsed = 0;
 
-speedSlider.oninput = () => {
-  speed = parseInt(speedSlider.value);
-  speedLabel.textContent = speed;
-};
+    speedSlider.oninput = () => {
+        speed = parseInt(speedSlider.value);
+        speedLabel.textContent = speed;
+    };
 
-btnMenu.onclick = () => sidebar.classList.toggle('open');
+    resetButton.onclick = () => {
+        trails.forEach(t => t.length = 0);
+    };
 
-resetButton.onclick = () => {
-  trails.forEach(t => t.length = 0);
-};
+    const sunMass = 1.99e30;
+    const bodies = [
+        {name: 'Sun', mass: sunMass, a: 0, e: 0, color: 'orange', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white.jpg', info: 'Sun, center.'},
+        {name: 'Mercury', mass: 3.3e23, a: 0.39, e: 0.206, color: 'gray', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg', info: 'Mercury, closest to Sun.'},
+        {name: 'Venus', mass: 4.87e24, a: 0.72, e: 0.007, color: 'gold', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg', info: 'Venus, Earth’s sister.'},
+        {name: 'Earth', mass: 5.97e24, a: 1.0, e: 0.017, color: 'blue', img: 'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg', info: 'Our home planet.', moons: [
+            {name: 'Moon', mass: 7.35e22, a: 0.00257, e: 0.055, color: 'gray', img: 'https://upload.wikimedia.org/wikipedia/commons/c/cb/Apollo_17_Sunrise.jpg', info: 'The Moon, Earth’s only natural satellite.'}
+        ]},
+        {name: 'Mars', mass: 6.42e23, a: 1.52, e: 0.093, color: 'red', img: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg', info: 'Mars, the red planet.', moons: [
+            {name: 'Phobos', mass: 1.0659e16, a: 9376e3, e: 0.015, color: 'lightgray', img: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Phobos_%28moon%29.jpg', info: 'Phobos, Mars’ largest moon.'},
+            {name: 'Deimos', mass: 1.4762e15, a: 23460e3, e: 0.000, color: 'lightgray', img: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Deimos_and_Mars.jpg', info: 'Deimos, Mars’ smaller moon.'}
+        ]},
+        {name: 'Jupiter', mass: 1.898e27, a: 5.2, e: 0.049, color: 'brown', img: 'https://upload.wikimedia.org/wikipedia/commons/1/1f/Jupiter_-_Voyager_1.jpg', info: 'The gas giant, Jupiter.', moons: [
+            {name: 'Io', mass: 8.93e22, a: 0.00422, e: 0.003, color: 'yellow', img: 'https://upload.wikimedia.org/wikipedia/commons/d/df/Io_-_NASA_Orbiter_Image.jpg', info: 'Io, the most volcanically active moon in the solar system.'},
+            {name: 'Europa', mass: 4.8e22, a: 0.00449, e: 0.010, color: 'white', img: 'https://upload.wikimedia.org/wikipedia/commons/9/9d/Europa_-_NASA_Orbiter_Image.jpg', info: 'Europa, with a possible subsurface ocean.'},
+            {name: 'Ganymede', mass: 1.48e23, a: 0.00715, e: 0.001, color: 'lightgray', img: 'https://upload.wikimedia.org/wikipedia/commons/1/1f/Ganymede_%28moon%29.jpg', info: 'Ganymede, the largest moon in the solar system.'},
+            {name: 'Callisto', mass: 1.08e23, a: 0.00781, e: 0.007, color: 'lightgray', img: 'https://upload.wikimedia.org/wikipedia/commons/5/55/Callisto_-_NASA_Orbiter_Image.jpg', info: 'Callisto, heavily cratered moon.'}
+        ]},
+        {name: 'Saturn', mass: 5.683e26, a: 9.58, e: 0.056, color: 'golden', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/Saturn_from_Voyager_2.jpg', info: 'Saturn, known for its rings.', moons: [
+            {name: 'Titan', mass: 1.3452e23, a: 0.0122, e: 0.029, color: 'yellow', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e3/Titan%2C_Saturn%27s_largest_moon.jpg', info: 'Titan, Saturn’s largest moon.'}
+        ]},
+        {name: 'Uranus', mass: 8.68e25, a: 19.18, e: 0.047, color: 'lightblue', img: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/Uranus_in_true_color.jpg', info: 'Uranus, tipped on its side.'},
+        {name: 'Neptune', mass: 1.02e26, a: 30.07, e: 0.010, color: 'blue', img: 'https://upload.wikimedia.org/wikipedia/commons/a/a0/Neptune_Full.jpg', info: 'Neptune, the windiest planet.'},
+        {name: 'Pluto', mass: 1.3e22, a: 39.48, e: 0.248, color: 'darkgray', img: 'https://upload.wikimedia.org/wikipedia/commons/1/1c/Pluto_in_true_color.jpg', info: 'Pluto, a dwarf planet.'}
+    ];
 
-spawnAsteroidButton.onclick = () => {
-  spawnAsteroid();
-};
-
-const sunMass = 1.99e30;
-const bodies = [
-  {name: 'Sun', mass: sunMass, a: 0, e: 0, color: 'orange', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white.jpg', info: 'Sun, center.'},
-  {name: 'Mercury', mass: 3.3e23, a: 0.39, e: 0.206, color: 'gray', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg', info: 'Mercury, closest to Sun.'},
-  {name: 'Venus', mass: 4.87e24, a: 0.72, e: 0.007, color: 'gold', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg', info: 'Venus, Earth’s sister.'},
-  {name: 'Earth', mass: 5.97e24, a: 1.0, e: 0.017, color: 'blue', img: 'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg', info: 'Our home planet.'},
-  {name: 'Mars', mass: 6.42e23, a: 1.52, e: 0.093, color: 'red', img: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg', info: 'Mars, the red planet.'},
-  {name: 'Jupiter', mass: 1.9e27, a: 5.2, e: 0.049, color: 'brown', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4f/Jupiter_Amalthea_print.jpg', info: 'Jupiter, the largest planet.'},
-  {name: 'Saturn', mass: 5.68e26, a: 9.58, e: 0.056, color: 'gold', img: 'https://upload.wikimedia.org/wikipedia/commons/9/94/Saturn_%28planet%29.jpg', info: 'Saturn, known for its rings.'},
-  {name: 'Uranus', mass: 8.68e25, a: 19.18, e: 0.046, color: 'lightblue', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e3/Uranus2.jpg', info: 'Uranus, tilted rotation.'},
-  {name: 'Neptune', mass: 1.02e26, a: 30.07, e: 0.010, color: 'darkblue', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e1/Neptune_Full.jpg', info: 'Neptune, the wind giant.'},
-  {name: 'Pluto', mass: 1.31e22, a: 39.48, e: 0.248, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/d/d7/Pluto_in_True_Colour.jpg', info: 'Pluto, a dwarf planet.'}
-];
-
-const moons = [
-  {planet: 'Earth', name: 'Moon', mass: 7.35e22, a: 0.00257, e: 0.055, color: 'lightgray', img: 'https://upload.wikimedia.org/wikipedia/commons/4/42/FullMoon2010.jpg', info: 'Earth\'s Moon.'},
-  {planet: 'Mars', name: 'Phobos', mass: 1.0659e16, a: 0.00094, e: 0.015, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Phobos_2008.jpg', info: 'Phobos, moon of Mars.'}
-];
-
-let asteroids = [];
-
-function spawnAsteroid() {
-  const randomAngle = Math.random() * Math.PI * 2;
-  const randomDistance = Math.random() * (300 * AU - 100 * AU) + 100 * AU;
-  const asteroid = {
-    mass: 1e14,
-    a: randomDistance / AU,
-    e: 0.1,
-    angle: randomAngle,
-    color: 'gray',
-    x: Math.cos(randomAngle) * randomDistance + offsetX,
-    y: Math.sin(randomAngle) * randomDistance + offsetY
-  };
-  asteroids.push(asteroid);
-}
-
-function distance(a, b) {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-}
-
-function applyGravity(bodies) {
-  bodies.forEach((b, i) => {
-    bodies.forEach((b2, j) => {
-      if (i !== j) {
-        const d = distance(b, b2);
-        const F = G * (b.mass * b2.mass) / (d * d);
-        const angle = Math.atan2(b2.y - b.y, b2.x - b.x);
-        const fx = Math.cos(angle) * F;
-        const fy = Math.sin(angle) * F;
-        b.vx += fx / b.mass;
-        b.vy += fy / b.mass;
-      }
+    let positions = [], velocities = [], masses = [], trails = [];
+    bodies.forEach(b => {
+        masses.push(b.mass);
+        if (b.a === 0) {
+            positions.push([0, 0]);
+            velocities.push([0, 0]);
+        } else {
+            let a = b.a * AU, e = b.e;
+            let x = a * (1 + e), y = 0;
+            let v = Math.sqrt(G * sunMass * (1 - e) / (a * (1 + e)));
+            positions.push([x, y]);
+            velocities.push([0, v]);
+        }
+        trails.push([]);
+        if (b.moons) {
+            b.moons.forEach(m => {
+                let a = m.a * AU, e = m.e;
+                let x = a * (1 + e), y = 0;
+                let v = Math.sqrt(G * b.mass * (1 - e) / (a * (1 + e)));
+                positions.push([x + positions[bodies.indexOf(b)][0], y + positions[bodies.indexOf(b)][1]]);
+                velocities.push([0, v]);
+                trails.push([]);
+            });
+        }
     });
-  });
-}
 
-function updateBodies(bodies, asteroids) {
-  applyGravity(bodies.concat(asteroids));
-  
-  bodies.forEach(b => {
-    b.x += b.vx * speed;
-    b.y += b.vy * speed;
-    b.vx *= 0.99; b.vy *= 0.99; // friction-like slowdown for stability
-  });
-  
-  asteroids.forEach(a => {
-    a.x += a.vx * speed;
-    a.y += a.vy * speed;
-    a.vx *= 0.99; a.vy *= 0.99;
-  });
-}
+    function computeAccelerations(pos, masses) {
+        const acc = Array(pos.length).fill(0).map(() => [0, 0]);
+        for (let i = 0; i < pos.length; i++) {
+            for (let j = 0; j < pos.length; j++) {
+                if (i === j) continue;
+                let dx = pos[j][0] - pos[i][0];
+                let dy = pos[j][1] - pos[i][1];
+                let distSq = dx * dx + dy * dy + 1e10;
+                let dist = Math.sqrt(distSq);
+                let force = G * masses[i] * masses[j] / distSq;
+                let ax = force * dx / dist;
+                let ay = force * dy / dist;
+                acc[i][0] += ax;
+                acc[i][1] += ay;
+            }
+        }
+        return acc;
+    }
 
-function drawBodies(bodies, asteroids) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  bodies.concat(asteroids).forEach(b => {
-    ctx.beginPath();
-    ctx.arc(b.x * scale + offsetX, b.y * scale + offsetY, 4, 0, Math.PI * 2);
-    ctx.fillStyle = b.color;
-    ctx.fill();
-  });
-}
+    function update() {
+        elapsed += 1;
+        const acc = computeAccelerations(positions, masses);
+        for (let i = 0; i < positions.length; i++) {
+            velocities[i][0] += acc[i][0] * speed / masses[i];
+            velocities[i][1] += acc[i][1] * speed / masses[i];
+            positions[i][0] += velocities[i][0] * speed;
+            positions[i][1] += velocities[i][1] * speed;
+            trails[i].push([positions[i][0], positions[i][1]]);
+            if (trails[i].length > 200) trails[i].shift();
+        }
+        draw();
+        timeValue.textContent = formatTime(elapsed);
+        requestAnimationFrame(update);
+    }
 
-function handleMouseWheel(event) {
-  scale *= event.deltaY < 0 ? 1.1 : 0.9;
-  event.preventDefault();
-}
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+        bodies.forEach((b, index) => {
+            let px = positions[index][0] * scale + offsetX;
+            let py = positions[index][1] * scale + offsetY;
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2, false);
+            ctx.fillStyle = b.color;
+            ctx.fill();
 
-function handleMouseDown(event) {
-  isDragging = true;
-  dragStartX = event.clientX;
-  dragStartY = event.clientY;
-}
+            if (b.moons) {
+                b.moons.forEach((m, moonIndex) => {
+                    let moonIndexGlobal = bodies.length + moonIndex;
+                    let moonX = positions[moonIndexGlobal][0] * scale + offsetX;
+                    let moonY = positions[moonIndexGlobal][1] * scale + offsetY;
+                    ctx.beginPath();
+                    ctx.arc(moonX, moonY, 2, 0, Math.PI * 2, false);
+                    ctx.fillStyle = m.color;
+                    ctx.fill();
+                });
+            }
+        });
 
-function handleMouseMove(event) {
-  if (isDragging) {
-    const dx = event.clientX - dragStartX;
-    const dy = event.clientY - dragStartY;
-    offsetX += dx;
-    offsetY += dy;
-    dragStartX = event.clientX;
-    dragStartY = event.clientY;
-  }
-}
+        trails.forEach(t => {
+            ctx.beginPath();
+            t.forEach((point, idx) => {
+                let px = point[0] * scale + offsetX;
+                let py = point[1] * scale + offsetY;
+                ctx.lineTo(px, py);
+            });
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.stroke();
+        });
+    }
 
-function handleMouseUp() {
-  isDragging = false;
-}
+    function formatTime(time) {
+        const years = Math.floor(time / (365.25 * day));
+        time %= (365.25 * day);
+        const months = Math.floor(time / (30 * day));
+        time %= (30 * day);
+        const days = Math.floor(time / day);
+        time %= day;
+        const hours = Math.floor(time / 3600);
+        return `${years}y ${months}m ${days}d ${hours}h`;
+    }
 
-canvas.addEventListener('wheel', handleMouseWheel);
-canvas.addEventListener('mousedown', handleMouseDown);
-canvas.addEventListener('mousemove', handleMouseMove);
-canvas.addEventListener('mouseup', handleMouseUp);
-
-function updateSimulation() {
-  elapsed++;
-  updateBodies(bodies, asteroids);
-  drawBodies(bodies, asteroids);
-  timeValue.textContent = `${Math.floor(elapsed / 365)}y ${Math.floor(elapsed % 365)}d`;
-  requestAnimationFrame(updateSimulation);
-}
-
-updateSimulation();
+    update();
 </script>
+</body>
+</html>
+
 </body>
 </html>
