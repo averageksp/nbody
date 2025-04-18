@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Solar System Simulation – Full System</title>
+<title>Solar System Simulation – Full System with Gravity, Asteroids, Zoom & Pan</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -110,6 +110,9 @@
   <div class="info">
     <button id="resetButton">Reset Trails</button>
   </div>
+  <div class="info">
+    <button id="spawnAsteroidButton">Spawn Asteroid</button>
+  </div>
 </div>
 
 <script>
@@ -123,6 +126,7 @@ const speedSlider = document.getElementById('speedControl');
 const speedLabel = document.getElementById('speedValue');
 const timeValue = document.getElementById('timeValue');
 const resetButton = document.getElementById('resetButton');
+const spawnAsteroidButton = document.getElementById('spawnAsteroidButton');
 
 let W = window.innerWidth, H = window.innerHeight;
 canvas.width = W; canvas.height = H;
@@ -131,6 +135,7 @@ let scale = W / (12 * AU);
 let offsetX = W / 2, offsetY = H / 2;
 let speed = parseInt(speedSlider.value);
 let elapsed = 0;
+let isDragging = false, dragStartX, dragStartY;
 
 speedSlider.oninput = () => {
   speed = parseInt(speedSlider.value);
@@ -141,6 +146,10 @@ btnMenu.onclick = () => sidebar.classList.toggle('open');
 
 resetButton.onclick = () => {
   trails.forEach(t => t.length = 0);
+};
+
+spawnAsteroidButton.onclick = () => {
+  spawnAsteroid();
 };
 
 const sunMass = 1.99e30;
@@ -159,144 +168,112 @@ const bodies = [
 
 const moons = [
   {planet: 'Earth', name: 'Moon', mass: 7.35e22, a: 0.00257, e: 0.055, color: 'lightgray', img: 'https://upload.wikimedia.org/wikipedia/commons/4/42/FullMoon2010.jpg', info: 'Earth\'s Moon.'},
-  {planet: 'Mars', name: 'Phobos', mass: 1.0659e16, a: 0.00094, e: 0.015, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Phobos_2008.jpg', info: 'Phobos, a moon of Mars.'},
-  {planet: 'Mars', name: 'Deimos', mass: 1.4762e15, a: 0.0023, e: 0.000, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/6/67/Deimos_moon.jpg', info: 'Deimos, a moon of Mars.'},
-  {planet: 'Jupiter', name: 'Io', mass: 8.93e22, a: 0.0028, e: 0.004, color: 'yellow', img: 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Io_True_Color.jpg', info: 'Io, a volcanic moon of Jupiter.'},
-  {planet: 'Jupiter', name: 'Europa', mass: 4.80e22, a: 0.0035, e: 0.010, color: 'white', img: 'https://upload.wikimedia.org/wikipedia/commons/4/47/Europa_%28moon%29.jpg', info: 'Europa, a moon of Jupiter.'},
-  {planet: 'Jupiter', name: 'Ganymede', mass: 1.48e23, a: 0.0052, e: 0.001, color: 'brown', img: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/Ganymede_high_resolution.jpg', info: 'Ganymede, largest moon in the Solar System.'},
-  {planet: 'Saturn', name: 'Titan', mass: 1.35e23, a: 0.008, e: 0.029, color: 'orange', img: 'https://upload.wikimedia.org/wikipedia/commons/6/60/Titan_in_true_color.jpg', info: 'Titan, Saturn\'s largest moon.'},
-  {planet: 'Saturn', name: 'Enceladus', mass: 1.08e20, a: 0.00024, e: 0.004, color: 'lightblue', img: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Enceladus_%28moon%29.jpg', info: 'Enceladus, moon of Saturn.'},
-  {planet: 'Uranus', name: 'Miranda', mass: 6.6e19, a: 0.00023, e: 0.001, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/f/f1/Miranda_Uranus.jpg', info: 'Miranda, a moon of Uranus.'},
-  {planet: 'Neptune', name: 'Triton', mass: 2.14e22, a: 0.004, e: 0.000, color: 'darkgrey', img: 'https://upload.wikimedia.org/wikipedia/commons/1/1b/Triton.jpg', info: 'Triton, Neptune\'s largest moon.'}
+  {planet: 'Mars', name: 'Phobos', mass: 1.0659e16, a: 0.00094, e: 0.015, color: 'grey', img: 'https://upload.wikimedia.org/wikipedia/commons/2/2d/Phobos_2008.jpg', info: 'Phobos, moon of Mars.'}
 ];
 
-let positions = [], velocities = [], masses = [], trails = [];
-bodies.forEach(b => {
-  masses.push(b.mass);
-  if (b.a === 0) {
-    positions.push([0, 0]);
-    velocities.push([0, 0]);
-  } else {
-    let a = b.a * AU, e = b.e;
-    let x = a * (1 + e), y = 0;
-    let v = Math.sqrt(G * sunMass * (1 - e) / (a * (1 + e)));
-    positions.push([x, y]);
-    velocities.push([0, v]);
-  }
-  trails.push([]);
-});
+let asteroids = [];
 
-moons.forEach(m => {
-  const planet = bodies.find(p => p.name === m.planet);
-  let a = m.a * planet.a * AU, e = m.e;
-  let x = a * (1 + e), y = 0;
-  let v = Math.sqrt(G * planet.mass * (1 - e) / (a * (1 + e)));
-  positions.push([x, y]);
-  velocities.push([0, v]);
-  masses.push(m.mass);
-  trails.push([]);
-});
-
-function computeAccelerations(pos, masses) {
-  const acc = Array(pos.length).fill(0).map(() => [0, 0]);
-  for (let i = 0; i < pos.length; i++) {
-    for (let j = 0; j < pos.length; j++) {
-      if (i === j) continue;
-      let dx = pos[j][0] - pos[i][0];
-      let dy = pos[j][1] - pos[i][1];
-      let distSq = dx * dx + dy * dy + 1e10;
-      let dist = Math.sqrt(distSq);
-      let force = G * masses[j] / distSq;
-      acc[i][0] += force * dx / dist;
-      acc[i][1] += force * dy / dist;
-    }
-  }
-  return acc;
+function spawnAsteroid() {
+  const randomAngle = Math.random() * Math.PI * 2;
+  const randomDistance = Math.random() * (300 * AU - 100 * AU) + 100 * AU;
+  const asteroid = {
+    mass: 1e14,
+    a: randomDistance / AU,
+    e: 0.1,
+    angle: randomAngle,
+    color: 'gray',
+    x: Math.cos(randomAngle) * randomDistance + offsetX,
+    y: Math.sin(randomAngle) * randomDistance + offsetY
+  };
+  asteroids.push(asteroid);
 }
 
-function update() {
-  let acc = computeAccelerations(positions, masses);
-  for (let i = 0; i < positions.length; i++) {
-    velocities[i][0] += acc[i][0] * day * 0.1;
-    velocities[i][1] += acc[i][1] * day * 0.1;
-    positions[i][0] += velocities[i][0] * day * 0.1;
-    positions[i][1] += velocities[i][1] * day * 0.1;
-    trails[i].push([...positions[i]]);
-    if (trails[i].length > 1000) trails[i].shift();
-  }
+function distance(a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
-function formatTime(seconds) {
-  const years = Math.floor(seconds / (3600 * 24 * 365));
-  const months = Math.floor((seconds % (3600 * 24 * 365)) / (3600 * 24 * 30));
-  const days = Math.floor((seconds % (3600 * 24 * 30)) / (3600 * 24));
-  const hours = Math.floor((seconds % (3600 * 24)) / 3600);
-  return `${years}y ${months}m ${days}d ${hours}h`;
+function applyGravity(bodies) {
+  bodies.forEach((b, i) => {
+    bodies.forEach((b2, j) => {
+      if (i !== j) {
+        const d = distance(b, b2);
+        const F = G * (b.mass * b2.mass) / (d * d);
+        const angle = Math.atan2(b2.y - b.y, b2.x - b.x);
+        const fx = Math.cos(angle) * F;
+        const fy = Math.sin(angle) * F;
+        b.vx += fx / b.mass;
+        b.vy += fy / b.mass;
+      }
+    });
+  });
 }
 
-function draw() {
-  ctx.clearRect(0, 0, W, H);
-  for (let i = 0; i < bodies.length; i++) {
-    const trail = trails[i];
+function updateBodies(bodies, asteroids) {
+  applyGravity(bodies.concat(asteroids));
+  
+  bodies.forEach(b => {
+    b.x += b.vx * speed;
+    b.y += b.vy * speed;
+    b.vx *= 0.99; b.vy *= 0.99; // friction-like slowdown for stability
+  });
+  
+  asteroids.forEach(a => {
+    a.x += a.vx * speed;
+    a.y += a.vy * speed;
+    a.vx *= 0.99; a.vy *= 0.99;
+  });
+}
+
+function drawBodies(bodies, asteroids) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  bodies.concat(asteroids).forEach(b => {
     ctx.beginPath();
-    for (let j = 0; j < trail.length; j++) {
-      const [x, y] = trail[j];
-      const sx = offsetX + x * scale;
-      const sy = offsetY + y * scale;
-      j === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
-    }
-    ctx.strokeStyle = bodies[i].color;
-    ctx.stroke();
-  }
-
-  for (let i = 0; i < bodies.length; i++) {
-    const [x, y] = positions[i];
-    const sx = offsetX + x * scale;
-    const sy = offsetY + y * scale;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = bodies[i].color;
+    ctx.arc(b.x * scale + offsetX, b.y * scale + offsetY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = b.color;
     ctx.fill();
-  }
+  });
+}
 
-  for (let i = bodies.length; i < positions.length; i++) {
-    const [x, y] = positions[i];
-    const sx = offsetX + x * scale;
-    const sy = offsetY + y * scale;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 2, 0, 2 * Math.PI);
-    ctx.fillStyle = 'white';
-    ctx.fill();
+function handleMouseWheel(event) {
+  scale *= event.deltaY < 0 ? 1.1 : 0.9;
+  event.preventDefault();
+}
+
+function handleMouseDown(event) {
+  isDragging = true;
+  dragStartX = event.clientX;
+  dragStartY = event.clientY;
+}
+
+function handleMouseMove(event) {
+  if (isDragging) {
+    const dx = event.clientX - dragStartX;
+    const dy = event.clientY - dragStartY;
+    offsetX += dx;
+    offsetY += dy;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
   }
 }
 
-canvas.addEventListener('mousemove', e => {
-  const mx = e.clientX, my = e.clientY;
-  tooltip.style.display = 'none';
-  for (let i = 0; i < bodies.length; i++) {
-    const [x, y] = positions[i];
-    const sx = offsetX + x * scale;
-    const sy = offsetY + y * scale;
-    if (Math.hypot(mx - sx, my - sy) < 10) {
-      const b = bodies[i];
-      tooltip.innerHTML = `<strong>${b.name}</strong><br>${b.info}<br><img src="${b.img}" />`;
-      tooltip.style.left = `${mx + 15}px`;
-      tooltip.style.top = `${my + 15}px`;
-      tooltip.style.display = 'block';
-      break;
-    }
-  }
-});
-
-function animate() {
-  elapsed += speed;
-  update();
-  draw();
-  timeValue.textContent = formatTime(elapsed);
-  requestAnimationFrame(animate);
+function handleMouseUp() {
+  isDragging = false;
 }
 
-animate();
+canvas.addEventListener('wheel', handleMouseWheel);
+canvas.addEventListener('mousedown', handleMouseDown);
+canvas.addEventListener('mousemove', handleMouseMove);
+canvas.addEventListener('mouseup', handleMouseUp);
+
+function updateSimulation() {
+  elapsed++;
+  updateBodies(bodies, asteroids);
+  drawBodies(bodies, asteroids);
+  timeValue.textContent = `${Math.floor(elapsed / 365)}y ${Math.floor(elapsed % 365)}d`;
+  requestAnimationFrame(updateSimulation);
+}
+
+updateSimulation();
 </script>
 </body>
 </html>
