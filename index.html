@@ -103,295 +103,163 @@
 <div id="sidebar">
   <h2>Simulation Controls</h2>
   <label>Speed: <span id="speedValue">1</span></label>
-  <input id="speedControl" type="range" min="0" max="100" value="1"/>
+  <input id="speedControl" type="range" min="1" max="100" value="1"/>
   <div class="info">
     <strong>Time:</strong> <div id="timeValue">0y 0m 0d 0h</div>
   </div>
   <div class="info">
-    <strong>Manage Bodies</strong>
-    <button id="addAsteroid">Add Asteroid</button>
-    <button id="removeBody">Remove Last</button>
     <button id="resetButton">Reset Trails</button>
-  </div>
-  <div class="info">
-    <strong>Asteroid Params</strong>
-    <label>Mass (kg):</label><input id="asteroidMass" type="number" value="1e18"/>
-    <label>Speed Factor:</label><input id="asteroidSpeed" type="number" value="30000"/>
-    <small>Click canvas once for pos, again for vel.</small>
   </div>
 </div>
 
 <script>
-const G = 6.6743e-11,
-      AU = 1.496e11,
-      day = 24*3600;
+const G = 6.6743e-11, AU = 1.496e11, day = 24*3600;
+const canvas = document.getElementById('orbitCanvas');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+const sidebar = document.getElementById('sidebar');
+const btnMenu = document.getElementById('menuToggle');
+const speedSlider = document.getElementById('speedControl');
+const speedLabel = document.getElementById('speedValue');
+const timeValue = document.getElementById('timeValue');
+const resetButton = document.getElementById('resetButton');
 
-const canvas = document.getElementById('orbitCanvas'),
-      ctx = canvas.getContext('2d'),
-      tooltip = document.getElementById('tooltip'),
-      menu = document.getElementById('sidebar'),
-      btnMenu = document.getElementById('menuToggle'),
-      speedControl = document.getElementById('speedControl'),
-      speedValue = document.getElementById('speedValue'),
-      timeValue = document.getElementById('timeValue');
-
-let W = innerWidth, H = innerHeight;
+let W = window.innerWidth, H = window.innerHeight;
 canvas.width = W; canvas.height = H;
 
-let scale = W/(10*AU),
-    offX = W/2, offY = H/2,
-    isDragging = false, dragX=0, dragY=0,
-    speed = 1, elapsed = 0,
-    asteroidMode = false, tempPos = null;
+let scale = W / (12 * AU);
+let offsetX = W / 2, offsetY = H / 2;
+let speed = parseInt(speedSlider.value);
+let elapsed = 0;
 
-// toggle menu
-btnMenu.onclick = ()=> menu.classList.toggle('open');
-
-// speed control
-speedControl.oninput = () => {
-  speed = +speedControl.value;
-  speedValue.textContent = speed;
+speedSlider.oninput = () => {
+  speed = parseInt(speedSlider.value);
+  speedLabel.textContent = speed;
 };
 
-// bodies with semi-major axis (a) in AU and eccentricity (e)
+btnMenu.onclick = () => sidebar.classList.toggle('open');
+
+resetButton.onclick = () => {
+  trails.forEach(t => t.length = 0);
+};
+
 const sunMass = 1.99e30;
-let bodies = [
-  {name:'Sun',    mass:sunMass,  a:0,      e:0,      color:'orange', img:'https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white.jpg',           info:'Sun, center.', showMoons:false},
-  {name:'Mercury',mass:3.3e23,   a:0.39,   e:0.2056, color:'gray',   img:'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg', info:'Mercury', showMoons:false},
-  {name:'Venus',  mass:4.87e24,  a:0.72,   e:0.0067, color:'gold',   img:'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg',      info:'Venus', showMoons:false},
-  {name:'Earth',  mass:5.97e24,  a:1.00,   e:0.0167, color:'blue',   img:'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg', info:'Earth', showMoons:false},
-  {name:'Mars',   mass:6.42e23,  a:1.52,   e:0.0934, color:'red',    img:'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg',  info:'Mars', showMoons:false},
-  {name:'Jupiter',mass:1.9e27,   a:5.20,   e:0.0489, color:'orange', img:'https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg',                 info:'Jupiter', showMoons:false},
-  {name:'Saturn', mass:5.68e26,  a:9.58,   e:0.0565, color:'goldenrod',img:'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg', info:'Saturn', showMoons:false},
-  {name:'Uranus', mass:8.68e25,  a:19.2,   e:0.0463, color:'lightblue',img:'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg',           info:'Uranus', showMoons:false},
-  {name:'Neptune',mass:1.02e26,  a:30.05,  e:0.0097, color:'darkblue', img:'https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_Full.jpg',        info:'Neptune', showMoons:false},
-  {name:'Pluto',  mass:1.31e22,  a:39.48,  e:0.2488, color:'white',   img:'https://upload.wikimedia.org/wikipedia/commons/2/2a/Nh-pluto-in-true-color_2x_JPEG.jpg', info:'Pluto', showMoons:false}
+const bodies = [
+  {name: 'Sun', mass: sunMass, a: 0, e: 0, color: 'orange', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white.jpg', info: 'Sun, center.'},
+  {name: 'Mercury', mass: 3.3e23, a: 0.39, e: 0.206, color: 'gray', img: 'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg', info: 'Mercury, closest to Sun.'},
+  {name: 'Venus', mass: 4.87e24, a: 0.72, e: 0.007, color: 'gold', img: 'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg', info: 'Venus, Earth’s sister.'},
+  {name: 'Earth', mass: 5.97e24, a: 1.0, e: 0.017, color: 'blue', img: 'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg', info: 'Our home planet.'},
+  {name: 'Mars', mass: 6.42e23, a: 1.52, e: 0.093, color: 'red', img: 'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg', info: 'Mars, the red planet.'}
 ];
 
-// compute initial pos & vel for elliptical orbits
-let positions = [], velocities = [], masses = [], trail = [];
+let positions = [], velocities = [], masses = [], trails = [];
 bodies.forEach(b => {
   masses.push(b.mass);
-  if (b.name==='Sun') {
-    positions.push([0,0]);
-    velocities.push([0,0]);
+  if (b.a === 0) {
+    positions.push([0, 0]);
+    velocities.push([0, 0]);
   } else {
-    let a = b.a*AU, e = b.e;
-    let x = a*(1+e), y = 0;
-    let v = Math.sqrt(G*sunMass*(1-e)/(a*(1+e)));
-    positions.push([x,y]);
-    velocities.push([0,v]);
+    let a = b.a * AU, e = b.e;
+    let x = a * (1 + e), y = 0;
+    let v = Math.sqrt(G * sunMass * (1 - e) / (a * (1 + e)));
+    positions.push([x, y]);
+    velocities.push([0, v]);
   }
-  trail.push([]);
+  trails.push([]);
 });
 
-// add real moons
-const addMoon = m=>{
-  bodies.push(m);
-  positions.push(m.pos.slice());
-  velocities.push(m.vel.slice());
-  masses.push(m.mass);
-  trail.push([]);
-};
-addMoon({name:'Moon',    mass:7.35e22, pos:[1*AU+3.84e8,0],      vel:[0,30000+1022],  color:'#ccc', img:'https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg',               info:'Moon',    isMoon:true, parent:'Earth'});
-addMoon({name:'Phobos',  mass:1.07e16, pos:[1.52*AU+9.38e6,0],  vel:[0,24000+2138],  color:'#aaa', img:'https://upload.wikimedia.org/wikipedia/commons/5/55/Phobos_colour_2008.jpg',             info:'Phobos',  isMoon:true, parent:'Mars'});
-addMoon({name:'Deimos',  mass:1.80e15, pos:[1.52*AU+2.34e7,0],  vel:[0,24000+1351],  color:'#888', img:'https://upload.wikimedia.org/wikipedia/commons/0/02/Deimos_MRO.jpg',                      info:'Deimos',  isMoon:true, parent:'Mars'});
-// Jupiter’s Galileans:
-addMoon({name:'Io',      mass:8.93e22, pos:[5.2*AU+4.22e8,0],   vel:[0,13000+1730], color:'#fc0', img:'https://upload.wikimedia.org/wikipedia/commons/9/98/Io_highest_resolution_true_color.jpg',    info:'Io',      isMoon:true, parent:'Jupiter'});
-addMoon({name:'Europa',  mass:4.80e22, pos:[5.2*AU+6.71e8,0],   vel:[0,13000+1374], color:'#eef', img:'https://upload.wikimedia.org/wikipedia/commons/0/00/Europa-moon.jpg',                       info:'Europa',  isMoon:true, parent:'Jupiter'});
-addMoon({name:'Ganymede',mass:1.48e23, pos:[5.2*AU+1.07e9,0],   vel:[0,13000+1080], color:'#ccc', img:'https://upload.wikimedia.org/wikipedia/commons/1/10/Ganymede_galileo.jpg',                  info:'Ganymede',isMoon:true, parent:'Jupiter'});
-addMoon({name:'Callisto',mass:1.08e23, pos:[5.2*AU+1.88e9,0],   vel:[0,13000+820],  color:'#999', img:'https://upload.wikimedia.org/wikipedia/commons/5/57/Callisto.jpg',                       info:'Callisto',isMoon:true, parent:'Jupiter'});
-// Saturn:
-addMoon({name:'Titan',   mass:1.35e23, pos:[9.58*AU+1.22e9,0],  vel:[0,9700+577],   color:'#fc9', img:'https://upload.wikimedia.org/wikipedia/commons/5/5c/Titan_in_true_color.jpg',            info:'Titan',   isMoon:true, parent:'Saturn'});
-addMoon({name:'Rhea',    mass:2.31e21, pos:[9.58*AU+5.27e8,0],  vel:[0,9700+833],   color:'#ccc', img:'https://upload.wikimedia.org/wikipedia/commons/0/04/Rhea_%28IAU%29.png',                info:'Rhea',    isMoon:true, parent:'Saturn'});
-addMoon({name:'Iapetus', mass:1.81e21, pos:[9.58*AU+1.88e9,0],  vel:[0,9700+358],   color:'#ddd', img:'https://upload.wikimedia.org/wikipedia/commons/5/5a/Iapetus_-_Cassini.jpg',                    info:'Iapetus', isMoon:true, parent:'Saturn'});
-// Uranus:
-['Miranda', 'Ariel', 'Umbriel', 'Titania', 'Oberon'].forEach((name,i)=>{
-  let r = [1.30,1.91,2.66,4.36,5.67][i]*1e8;
-  let m = [6.59e19,1.29e21,1.17e21,3.53e21,3.01e21][i];
-  addMoon({name, mass:m, pos:[19.2*AU + r,0], vel:[0,6800 + Math.sqrt(G*8.68e25/r)], color:'#88f', img:'', info:name, isMoon:true, parent:'Uranus'});
-});
-// Neptune:
-addMoon({name:'Triton',  mass:2.14e22, pos:[30.05*AU+3.54e8,0], vel:[0,5430+1478], color:'#fff', img:'https://upload.wikimedia.org/wikipedia/commons/5/5e/Triton-mosaic-voyager-2.jpg', info:'Triton', isMoon:true, parent:'Neptune'});
-addMoon({name:'Nereid',  mass:3.10e19, pos:[30.05*AU+5.51e9,0], vel:[0,5430+213],  color:'#ccc', img:'https://upload.wikimedia.org/wikipedia/commons/1/1f/Nereid_Hubble.jpg',                 info:'Nereid', isMoon:true, parent:'Neptune'});
-// Pluto:
-addMoon({name:'Charon',  mass:1.52e21, pos:[39.48*AU+1.97e7,0], vel:[0,4740+200], color:'#bbb', img:'https://upload.wikimedia.org/wikipedia/commons/0/02/Pluto-Charon_%28cropped%29.jpg',     info:'Charon', isMoon:true, parent:'Pluto'});
-// Eris:
-addMoon({name:'Dysnomia',mass:1.57e19, pos:[67.67*AU+3.73e7,0], vel:[0,3500+224], color:'#aaa', img:'', info:'Dysnomia', isMoon:true, parent:'Eris'});
-// Haumea:
-addMoon({name:'Hiʻiaka', mass:1.79e19, pos:[43.13*AU+4.86e7,0], vel:[0,4000+250], color:'#f8f', img:'', info:'Hiʻiaka', isMoon:true, parent:'Haumea'});
-addMoon({name:'Namaka',  mass:2.00e18, pos:[43.13*AU+2.23e7,0], vel:[0,4000+370], color:'#faa', img:'', info:'Namaka',  isMoon:true, parent:'Haumea'});
-
-function computeAcc(pos, m) {
-  const a = Array(pos.length).fill(0).map(_=>[0,0]);
-  for (let i=0; i<pos.length; i++) {
-    for (let j=0; j<pos.length; j++) {
-      if (i===j) continue;
-      let dx = pos[j][0]-pos[i][0],
-          dy = pos[j][1]-pos[i][1],
-          r  = Math.hypot(dx,dy),
-          f  = (G*m[j])/(r*r+1e16);
-      a[i][0] += f*dx/r;
-      a[i][1] += f*dy/r;
+function computeAccelerations(pos, masses) {
+  const acc = Array(pos.length).fill(0).map(() => [0, 0]);
+  for (let i = 0; i < pos.length; i++) {
+    for (let j = 0; j < pos.length; j++) {
+      if (i === j) continue;
+      let dx = pos[j][0] - pos[i][0];
+      let dy = pos[j][1] - pos[i][1];
+      let distSq = dx * dx + dy * dy + 1e10;
+      let dist = Math.sqrt(distSq);
+      let force = G * masses[j] / distSq;
+      acc[i][0] += force * dx / dist;
+      acc[i][1] += force * dy / dist;
     }
   }
-  return a;
+  return acc;
 }
 
 function update() {
-  const a = computeAcc(positions, masses);
-  for (let i=0; i<positions.length; i++) {
-    velocities[i][0] += a[i][0]*day*0.1;
-    velocities[i][1] += a[i][1]*day*0.1;
-    positions[i][0] += velocities[i][0]*day*0.1;
-    positions[i][1] += velocities[i][1]*day*0.1;
+  let acc = computeAccelerations(positions, masses);
+  for (let i = 0; i < positions.length; i++) {
+    velocities[i][0] += acc[i][0] * day * 0.1;
+    velocities[i][1] += acc[i][1] * day * 0.1;
+    positions[i][0] += velocities[i][0] * day * 0.1;
+    positions[i][1] += velocities[i][1] * day * 0.1;
+    trails[i].push([...positions[i]]);
+    if (trails[i].length > 1000) trails[i].shift();
   }
+}
+
+function formatTime(seconds) {
+  const years = Math.floor(seconds / (3600 * 24 * 365));
+  const months = Math.floor((seconds % (3600 * 24 * 365)) / (3600 * 24 * 30));
+  const days = Math.floor((seconds % (3600 * 24 * 30)) / (3600 * 24));
+  const hours = Math.floor((seconds % (3600 * 24)) / 3600);
+  return `${years}y ${months}m ${days}d ${hours}h`;
 }
 
 function draw() {
-  ctx.clearRect(0,0,W,H);
-  // trails
-  trail.forEach((t,i)=>{
+  ctx.clearRect(0, 0, W, H);
+  for (let i = 0; i < bodies.length; i++) {
+    const trail = trails[i];
     ctx.beginPath();
-    t.forEach((p,j)=>{
-      let x=offX + p[0]*scale, y=offY + p[1]*scale;
-      j===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    });
+    for (let j = 0; j < trail.length; j++) {
+      const [x, y] = trail[j];
+      const sx = offsetX + x * scale;
+      const sy = offsetY + y * scale;
+      j === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+    }
     ctx.strokeStyle = bodies[i].color;
     ctx.stroke();
-  });
-  // bodies
-  bodies.forEach((b,i)=>{
-    if (b.isMoon) {
-      const p = bodies.find(x=>x.name===b.parent);
-      if (!p.showMoons) return;
-    }
-    const [x,y] = positions[i],
-          cx = offX + x*scale,
-          cy = offY + y*scale;
+  }
+
+  for (let i = 0; i < bodies.length; i++) {
+    const [x, y] = positions[i];
+    const sx = offsetX + x * scale;
+    const sy = offsetY + y * scale;
     ctx.beginPath();
-    ctx.arc(cx, cy, b.isMoon?3:6, 0,2*Math.PI);
-    ctx.fillStyle = b.color;
+    ctx.arc(sx, sy, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = bodies[i].color;
     ctx.fill();
-  });
-}
-
-function step() {
-  for (let i=0;i<speed;i++) {
-    update();
-    positions.forEach((p,j)=> trail[j].push(p.slice()));
   }
-  draw();
-  elapsed += speed*0.1*day;
-  const y = Math.floor(elapsed/(365.25*day)),
-        m = Math.floor((elapsed%(365.25*day))/(30*day)),
-        d = Math.floor((elapsed%(30*day))/day),
-        h = Math.floor((elapsed%day)/3600);
-  timeValue.textContent = `${y}y ${m}m ${d}d ${h}h`;
-  requestAnimationFrame(step);
 }
-
-// interactions
-canvas.addEventListener('mousedown', e => {
-  const r = canvas.getBoundingClientRect(),
-        mx = e.clientX - r.left,
-        my = e.clientY - r.top;
-  if (asteroidMode) {
-    const sx = (mx-offX)/scale, sy = (my-offY)/scale;
-    if (!tempPos) {
-      tempPos = [sx,sy];
-      alert('Now click for velocity');
-    } else {
-      const dx = sx-tempPos[0], dy = sy-tempPos[1],
-            mag = Math.hypot(dx,dy),
-            sp  = +document.getElementById('asteroidSpeed').value,
-            m   = +document.getElementById('asteroidMass').value,
-            v   = mag ? [dx/mag*sp, dy/mag*sp] : [0,0];
-      const ast = {name:'Ast', mass:m, pos: [...tempPos], vel:v, color:'#8f8', info:'Asteroid'};
-      bodies.push(ast); positions.push(ast.pos.slice()); velocities.push(ast.vel.slice()); masses.push(ast.mass); trail.push([]);
-      asteroidMode = false; tempPos = null;
-    }
-  } else {
-    isDragging = true;
-    dragX = e.clientX - offX;
-    dragY = e.clientY - offY;
-  }
-});
 
 canvas.addEventListener('mousemove', e => {
-  const r = canvas.getBoundingClientRect(),
-        mx = e.clientX - r.left,
-        my = e.clientY - r.top;
-  if (isDragging && !asteroidMode) {
-    offX = e.clientX - dragX;
-    offY = e.clientY - dragY;
-  }
-  // hover tooltip
-  let found=false;
-  bodies.forEach((b,i)=>{
-    if (b.isMoon) {
-      const p = bodies.find(x=>x.name===b.parent);
-      if (!p.showMoons) return;
-    }
-    const [x,y] = positions[i],
-          cx = offX + x*scale,
-          cy = offY + y*scale;
-    if (Math.hypot(cx-mx, cy-my)<10) {
-      tooltip.innerHTML = `<strong>${b.name}</strong><br>${b.info}<br><img src="${b.img}" alt="${b.name}">`;
+  const mx = e.clientX, my = e.clientY;
+  tooltip.style.display = 'none';
+  for (let i = 0; i < bodies.length; i++) {
+    const [x, y] = positions[i];
+    const sx = offsetX + x * scale;
+    const sy = offsetY + y * scale;
+    if (Math.hypot(mx - sx, my - sy) < 10) {
+      const b = bodies[i];
+      tooltip.innerHTML = `<strong>${b.name}</strong><br>${b.info}<br><img src="${b.img}" />`;
+      tooltip.style.left = `${mx + 15}px`;
+      tooltip.style.top = `${my + 15}px`;
       tooltip.style.display = 'block';
-      tooltip.style.left = (e.clientX+12)+'px';
-      tooltip.style.top = (e.clientY+12)+'px';
-      found = true;
+      break;
     }
-  });
-  if (!found) tooltip.style.display = 'none';
-});
-
-canvas.addEventListener('mouseup', ()=> isDragging=false);
-canvas.addEventListener('mouseout', ()=> tooltip.style.display='none');
-
-canvas.addEventListener('dblclick', e=>{
-  const r = canvas.getBoundingClientRect(),
-        mx = e.clientX - r.left,
-        my = e.clientY - r.top;
-  bodies.forEach((b,i)=>{
-    if (b.isMoon) return;
-    const [x,y] = positions[i],
-          cx = offX + x*scale,
-          cy = offY + y*scale;
-    if (Math.hypot(cx-mx, cy-my)<10) {
-      b.showMoons = !b.showMoons;
-    }
-  });
-});
-
-canvas.addEventListener('wheel', e=>{
-  e.preventDefault();
-  const r = canvas.getBoundingClientRect(),
-        mx = e.clientX - r.left,
-        my = e.clientY - r.top,
-        old = scale;
-  scale *= e.deltaY<0 ? 1.1 : 0.9;
-  offX = mx - (mx-offX)*(scale/old);
-  offY = my - (my-offY)*(scale/old);
-});
-
-window.addEventListener('resize', ()=> {
-  W = innerWidth; H = innerHeight;
-  canvas.width = W; canvas.height = H;
-});
-
-document.getElementById('addAsteroid').onclick = ()=>{
-  asteroidMode = true; tempPos = null;
-  alert('Click: position → then velocity');
-};
-document.getElementById('removeBody').onclick = ()=>{
-  if (bodies.length > masses.length - trail.length + positions.length) {
-    bodies.pop(); positions.pop(); velocities.pop(); masses.pop(); trail.pop();
   }
-};
+});
 
-step();
+function animate() {
+  for (let i = 0; i < speed; i++) {
+    update();
+    elapsed += day * 0.1;
+  }
+  timeValue.textContent = formatTime(elapsed);
+  draw();
+  requestAnimationFrame(animate);
+}
+
+animate();
 </script>
 </body>
 </html>
